@@ -6,7 +6,7 @@ const EmployeesPage = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Employees</h1>
+        <h1 className="text-3xl font-bold">Employees & Passports</h1>
         <EmployeeList />
       </div>
     </Layout>
