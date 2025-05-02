@@ -5,7 +5,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getAllEmployees, getEmployeePassport, getExpiryStatusColor } from "@/lib/data";
-import { User, Search, Passport } from "lucide-react";
+import { User, Search, FileText } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { format } from "date-fns";
 
@@ -79,7 +79,7 @@ const EmployeeList = () => {
                     <TableCell>
                       {passport ? (
                         <div className="flex items-center space-x-1">
-                          <Passport className="h-4 w-4 text-muted-foreground" />
+                          <FileText className="h-4 w-4 text-muted-foreground" />
                           <span>{passport.passportNumber}</span>
                         </div>
                       ) : (
