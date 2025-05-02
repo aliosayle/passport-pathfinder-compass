@@ -5,30 +5,33 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VisaType } from "@/types";
 import { visaTypes } from "@/lib/data";
-import { IdCard } from "lucide-react";
+import { Stamp, Filter, Flag } from "lucide-react";
 import VisaForm from "./VisaForm";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface VisaListProps {
-  onSelect?: (visa: VisaType) => void;
-  onEdit?: (visa: VisaType) => void;
-}
-
-const VisaList = ({ onSelect, onEdit }: VisaListProps) => {
+const VisaList = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedVisa, setSelectedVisa] = useState<VisaType | null>(null);
 
-  const filteredVisas = visaTypes.filter(
-    visa => 
+  const uniqueCountries = Array.from(new Set(visaTypes.map(visa => visa.countryName)));
+  
+  const filteredVisas = visaTypes.filter(visa => {
+    const matchesSearch = 
       visa.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      visa.countryName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      visa.countryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      visa.duration.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCountry = countryFilter === "all" || visa.countryName === countryFilter;
+    
+    return matchesSearch && matchesCountry;
+  });
 
-  const handleEdit = (visa: VisaType) => {
+  const handleEditVisa = (visa: VisaType) => {
     setSelectedVisa(visa);
     setIsFormOpen(true);
-    if (onEdit) onEdit(visa);
   };
 
   const handleAddNew = () => {
@@ -40,7 +43,7 @@ const VisaList = ({ onSelect, onEdit }: VisaListProps) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <IdCard className="h-5 w-5 text-muted-foreground" />
+          <Stamp className="h-5 w-5 text-muted-foreground" />
           <h2 className="text-xl font-semibold">Visa Types</h2>
         </div>
         <Button onClick={handleAddNew}>Add New Visa Type</Button>
@@ -48,19 +51,33 @@ const VisaList = ({ onSelect, onEdit }: VisaListProps) => {
 
       <div className="flex items-center space-x-2 pb-4">
         <Input
-          placeholder="Search by type or country..."
+          placeholder="Search by type, country, duration..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {uniqueCountries.map((country) => (
+                <SelectItem key={country} value={country}>{country}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Type</TableHead>
               <TableHead>Country</TableHead>
+              <TableHead>Visa Type</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Requirements</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -76,28 +93,23 @@ const VisaList = ({ onSelect, onEdit }: VisaListProps) => {
             ) : (
               filteredVisas.map((visa) => (
                 <TableRow key={visa.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Flag className="h-4 w-4 text-muted-foreground" />
+                      <span>{visa.countryName}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{visa.type}</TableCell>
-                  <TableCell>{visa.countryName} ({visa.countryCode})</TableCell>
                   <TableCell>{visa.duration}</TableCell>
-                  <TableCell className="truncate max-w-[200px]">{visa.requirements}</TableCell>
+                  <TableCell className="max-w-xs truncate">{visa.requirements}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEdit(visa)}
+                      onClick={() => handleEditVisa(visa)}
                     >
                       Edit
                     </Button>
-                    {onSelect && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSelect(visa)}
-                        className="ml-2"
-                      >
-                        Select
-                      </Button>
-                    )}
                   </TableCell>
                 </TableRow>
               ))

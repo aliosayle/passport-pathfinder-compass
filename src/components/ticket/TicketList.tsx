@@ -19,7 +19,7 @@ interface TicketListProps {
 
 const TicketList = ({ onSelect }: TicketListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -31,7 +31,7 @@ const TicketList = ({ onSelect }: TicketListProps) => {
       ticket.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.airlineName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = !statusFilter || ticket.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -85,7 +85,7 @@ const TicketList = ({ onSelect }: TicketListProps) => {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {ticketStatuses.map((status) => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
               ))}
