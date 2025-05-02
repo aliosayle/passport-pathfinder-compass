@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Ticket } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -33,11 +32,21 @@ const TicketForm = ({ ticket, onClose }: TicketFormProps) => {
   const [flightNumber, setFlightNumber] = useState(ticket?.flightNumber || "");
   const [cost, setCost] = useState(ticket?.cost?.toString() || "");
   const [currency, setCurrency] = useState(ticket?.currency || "USD");
-  const [status, setStatus] = useState(ticket?.status || "Active");
+  const [status, setStatus] = useState<'Active' | 'Used' | 'Cancelled' | 'Expired'>(
+    (ticket?.status as 'Active' | 'Used' | 'Cancelled' | 'Expired') || 'Active'
+  );
   const [notes, setNotes] = useState(ticket?.notes || "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { toast } = useToast();
+
+  // Add a type-safe handler for the status change
+  const handleStatusChange = (value: string) => {
+    // Verify that the value is one of our accepted status values
+    if (value === 'Active' || value === 'Used' || value === 'Cancelled' || value === 'Expired') {
+      setStatus(value);
+    }
+  };
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -362,7 +371,7 @@ const TicketForm = ({ ticket, onClose }: TicketFormProps) => {
           
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status} onValueChange={handleStatusChange}>
               <SelectTrigger id="status">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
