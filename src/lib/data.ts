@@ -1,5 +1,4 @@
-
-import { Passport } from '@/types';
+import { Passport, Nationality, Airline, VisaType, Flight, Ticket, FlightStatus, FlightType } from '@/types';
 
 // Helper to calculate days between dates
 export const daysBetweenDates = (date1: Date, date2: Date): number => {
@@ -21,6 +20,15 @@ export const getExpiryStatusColor = (expiryDate: Date): string => {
 
 // Get standard passport statuses
 export const standardStatuses: string[] = ['With Company', 'With Employee', 'With DGM'];
+
+// Flight statuses
+export const flightStatuses: FlightStatus[] = ['Pending', 'Completed', 'Cancelled', 'Delayed'];
+
+// Flight types
+export const flightTypes: FlightType[] = ['Business', 'Vacation', 'Sick Leave', 'Family Emergency', 'Training'];
+
+// Ticket statuses
+export const ticketStatuses: string[] = ['Active', 'Used', 'Cancelled', 'Expired'];
 
 // Example data
 export const mockPassports: Passport[] = [
@@ -85,6 +93,299 @@ export const mockPassports: Passport[] = [
     status: 'With Employee',
     lastUpdated: new Date(2023, 11, 30),
   },
+];
+
+// Mock nationalities
+export const mockNationalities: Nationality[] = [
+  {
+    id: '1',
+    name: 'United States',
+    code: 'US',
+    visaRequirements: 'Visa required for stays over 90 days'
+  },
+  {
+    id: '2',
+    name: 'United Kingdom',
+    code: 'GB',
+    visaRequirements: 'Visa required for work purposes'
+  },
+  {
+    id: '3',
+    name: 'Canada',
+    code: 'CA',
+    visaRequirements: 'Visa required for stays over 6 months'
+  },
+  {
+    id: '4',
+    name: 'Germany',
+    code: 'DE',
+    visaRequirements: 'Schengen visa for non-EU citizens'
+  },
+  {
+    id: '5',
+    name: 'Egypt',
+    code: 'EG',
+    visaRequirements: 'Visa required for all purposes'
+  }
+];
+
+// Mock airlines
+export const mockAirlines: Airline[] = [
+  {
+    id: '1',
+    name: 'Emirates',
+    code: 'EK',
+    contactInfo: 'customer.support@emirates.com'
+  },
+  {
+    id: '2',
+    name: 'Qatar Airways',
+    code: 'QR',
+    contactInfo: 'info@qatarairways.com'
+  },
+  {
+    id: '3',
+    name: 'British Airways',
+    code: 'BA',
+    contactInfo: 'customer.service@ba.com'
+  },
+  {
+    id: '4',
+    name: 'Lufthansa',
+    code: 'LH',
+    contactInfo: 'support@lufthansa.com'
+  },
+  {
+    id: '5',
+    name: 'Air France',
+    code: 'AF',
+    contactInfo: 'contact@airfrance.fr'
+  }
+];
+
+// Mock visa types
+export const mockVisaTypes: VisaType[] = [
+  {
+    id: '1',
+    type: 'Tourist',
+    duration: '90 days',
+    requirements: 'Passport, application form, photo',
+    countryCode: 'US',
+    countryName: 'United States'
+  },
+  {
+    id: '2',
+    type: 'Business',
+    duration: '180 days',
+    requirements: 'Passport, invitation letter, company documents',
+    countryCode: 'GB',
+    countryName: 'United Kingdom'
+  },
+  {
+    id: '3',
+    type: 'Work',
+    duration: '1 year',
+    requirements: 'Passport, work permit, medical certificate',
+    countryCode: 'DE',
+    countryName: 'Germany'
+  },
+  {
+    id: '4',
+    type: 'Student',
+    duration: '2 years',
+    requirements: 'Passport, acceptance letter, financial statements',
+    countryCode: 'CA',
+    countryName: 'Canada'
+  },
+  {
+    id: '5',
+    type: 'Transit',
+    duration: '3 days',
+    requirements: 'Passport, onward ticket',
+    countryCode: 'FR',
+    countryName: 'France'
+  }
+];
+
+// Mock flights
+export const mockFlights: Flight[] = [
+  {
+    id: '1',
+    employeeName: 'John Smith',
+    employeeId: 'EMP001',
+    departureDate: new Date(2023, 11, 15),
+    returnDate: new Date(2023, 11, 30),
+    destination: 'London',
+    origin: 'Dubai',
+    airlineId: '3',
+    airlineName: 'British Airways',
+    ticketReference: 'T12345',
+    flightNumber: 'BA106',
+    status: 'Completed',
+    type: 'Business',
+    notes: 'Annual conference',
+    lastUpdated: new Date(2023, 10, 10)
+  },
+  {
+    id: '2',
+    employeeName: 'Sarah Johnson',
+    employeeId: 'EMP002',
+    departureDate: new Date(2024, 1, 10),
+    returnDate: new Date(2024, 1, 20),
+    destination: 'Paris',
+    origin: 'Dubai',
+    airlineId: '5',
+    airlineName: 'Air France',
+    ticketReference: 'T54321',
+    flightNumber: 'AF655',
+    status: 'Pending',
+    type: 'Training',
+    lastUpdated: new Date(2023, 12, 5)
+  },
+  {
+    id: '3',
+    employeeName: 'Ahmed Hassan',
+    employeeId: 'EMP003',
+    departureDate: new Date(2024, 2, 15),
+    destination: 'Cairo',
+    origin: 'Dubai',
+    airlineId: '1',
+    airlineName: 'Emirates',
+    ticketReference: 'T98765',
+    flightNumber: 'EK927',
+    status: 'Pending',
+    type: 'Family Emergency',
+    notes: 'Emergency leave',
+    lastUpdated: new Date(2024, 1, 28)
+  },
+  {
+    id: '4',
+    employeeName: 'Li Wei',
+    employeeId: 'EMP004',
+    departureDate: new Date(2023, 9, 5),
+    returnDate: new Date(2023, 9, 25),
+    destination: 'Berlin',
+    origin: 'Dubai',
+    airlineId: '4',
+    airlineName: 'Lufthansa',
+    ticketReference: 'T13579',
+    flightNumber: 'LH761',
+    status: 'Completed',
+    type: 'Vacation',
+    lastUpdated: new Date(2023, 8, 15)
+  },
+  {
+    id: '5',
+    employeeName: 'Maria Garcia',
+    employeeId: 'EMP005',
+    departureDate: new Date(2024, 3, 10),
+    returnDate: new Date(2024, 3, 15),
+    destination: 'Madrid',
+    origin: 'Dubai',
+    airlineId: '2',
+    airlineName: 'Qatar Airways',
+    ticketReference: 'T24680',
+    flightNumber: 'QR151',
+    status: 'Pending',
+    type: 'Sick Leave',
+    notes: 'Medical treatment',
+    lastUpdated: new Date(2024, 2, 20)
+  }
+];
+
+// Mock tickets
+export const mockTickets: Ticket[] = [
+  {
+    id: '1',
+    reference: 'T12345',
+    employeeName: 'John Smith',
+    employeeId: 'EMP001',
+    issueDate: new Date(2023, 10, 1),
+    airlineId: '3',
+    airlineName: 'British Airways',
+    flightNumber: 'BA106',
+    departureDate: new Date(2023, 11, 15),
+    returnDate: new Date(2023, 11, 30),
+    destination: 'London',
+    origin: 'Dubai',
+    cost: 1500,
+    currency: 'USD',
+    status: 'Used',
+    notes: 'Business class',
+    lastUpdated: new Date(2023, 10, 10)
+  },
+  {
+    id: '2',
+    reference: 'T54321',
+    employeeName: 'Sarah Johnson',
+    employeeId: 'EMP002',
+    issueDate: new Date(2023, 12, 1),
+    airlineId: '5',
+    airlineName: 'Air France',
+    flightNumber: 'AF655',
+    departureDate: new Date(2024, 1, 10),
+    returnDate: new Date(2024, 1, 20),
+    destination: 'Paris',
+    origin: 'Dubai',
+    cost: 1200,
+    currency: 'EUR',
+    status: 'Active',
+    lastUpdated: new Date(2023, 12, 5)
+  },
+  {
+    id: '3',
+    reference: 'T98765',
+    employeeName: 'Ahmed Hassan',
+    employeeId: 'EMP003',
+    issueDate: new Date(2024, 1, 25),
+    airlineId: '1',
+    airlineName: 'Emirates',
+    flightNumber: 'EK927',
+    departureDate: new Date(2024, 2, 15),
+    destination: 'Cairo',
+    origin: 'Dubai',
+    cost: 800,
+    currency: 'USD',
+    status: 'Active',
+    notes: 'One-way ticket',
+    lastUpdated: new Date(2024, 1, 28)
+  },
+  {
+    id: '4',
+    reference: 'T13579',
+    employeeName: 'Li Wei',
+    employeeId: 'EMP004',
+    issueDate: new Date(2023, 8, 15),
+    airlineId: '4',
+    airlineName: 'Lufthansa',
+    flightNumber: 'LH761',
+    departureDate: new Date(2023, 9, 5),
+    returnDate: new Date(2023, 9, 25),
+    destination: 'Berlin',
+    origin: 'Dubai',
+    cost: 1350,
+    currency: 'EUR',
+    status: 'Used',
+    lastUpdated: new Date(2023, 8, 15)
+  },
+  {
+    id: '5',
+    reference: 'T24680',
+    employeeName: 'Maria Garcia',
+    employeeId: 'EMP005',
+    issueDate: new Date(2024, 2, 20),
+    airlineId: '2',
+    airlineName: 'Qatar Airways',
+    flightNumber: 'QR151',
+    departureDate: new Date(2024, 3, 10),
+    returnDate: new Date(2024, 3, 15),
+    destination: 'Madrid',
+    origin: 'Dubai',
+    cost: 950,
+    currency: 'USD',
+    status: 'Active',
+    lastUpdated: new Date(2024, 2, 20)
+  }
 ];
 
 // Custom hook to manage passport data
@@ -152,4 +453,148 @@ export const getPassportStats = () => {
     withEmployee,
     withDGM
   };
+};
+
+// DATA MANAGEMENT FOR NEW ENTITIES
+
+// Nationalities
+export let nationalities = [...mockNationalities];
+
+export const addNationality = (nationality: Omit<Nationality, 'id'>): Nationality => {
+  const newNationality: Nationality = {
+    ...nationality,
+    id: (nationalities.length + 1).toString(),
+  };
+  
+  nationalities = [...nationalities, newNationality];
+  return newNationality;
+};
+
+export const updateNationality = (updatedNationality: Nationality): Nationality => {
+  const index = nationalities.findIndex(n => n.id === updatedNationality.id);
+  
+  if (index !== -1) {
+    nationalities[index] = updatedNationality;
+    return updatedNationality;
+  }
+  
+  throw new Error('Nationality not found');
+};
+
+// Airlines
+export let airlines = [...mockAirlines];
+
+export const addAirline = (airline: Omit<Airline, 'id'>): Airline => {
+  const newAirline: Airline = {
+    ...airline,
+    id: (airlines.length + 1).toString(),
+  };
+  
+  airlines = [...airlines, newAirline];
+  return newAirline;
+};
+
+export const updateAirline = (updatedAirline: Airline): Airline => {
+  const index = airlines.findIndex(a => a.id === updatedAirline.id);
+  
+  if (index !== -1) {
+    airlines[index] = updatedAirline;
+    return updatedAirline;
+  }
+  
+  throw new Error('Airline not found');
+};
+
+// Visa Types
+export let visaTypes = [...mockVisaTypes];
+
+export const addVisaType = (visaType: Omit<VisaType, 'id'>): VisaType => {
+  const newVisaType: VisaType = {
+    ...visaType,
+    id: (visaTypes.length + 1).toString(),
+  };
+  
+  visaTypes = [...visaTypes, newVisaType];
+  return newVisaType;
+};
+
+export const updateVisaType = (updatedVisaType: VisaType): VisaType => {
+  const index = visaTypes.findIndex(v => v.id === updatedVisaType.id);
+  
+  if (index !== -1) {
+    visaTypes[index] = updatedVisaType;
+    return updatedVisaType;
+  }
+  
+  throw new Error('Visa type not found');
+};
+
+// Flights
+export let flights = [...mockFlights];
+
+export const addFlight = (flight: Omit<Flight, 'id' | 'lastUpdated'>): Flight => {
+  const newFlight: Flight = {
+    ...flight,
+    id: (flights.length + 1).toString(),
+    lastUpdated: new Date(),
+  };
+  
+  flights = [...flights, newFlight];
+  return newFlight;
+};
+
+export const updateFlight = (updatedFlight: Flight): Flight => {
+  const index = flights.findIndex(f => f.id === updatedFlight.id);
+  
+  if (index !== -1) {
+    const updated = {
+      ...updatedFlight,
+      lastUpdated: new Date(),
+    };
+    flights[index] = updated;
+    return updated;
+  }
+  
+  throw new Error('Flight not found');
+};
+
+export const getFlightsByStatus = (status: FlightStatus): Flight[] => {
+  return flights.filter(f => f.status === status);
+};
+
+export const getFlightsByType = (type: FlightType): Flight[] => {
+  return flights.filter(f => f.type === type);
+};
+
+// Tickets
+export let tickets = [...mockTickets];
+
+export const addTicket = (ticket: Omit<Ticket, 'id' | 'lastUpdated'>): Ticket => {
+  const newTicket: Ticket = {
+    ...ticket,
+    id: (tickets.length + 1).toString(),
+    lastUpdated: new Date(),
+  };
+  
+  tickets = [...tickets, newTicket];
+  return newTicket;
+};
+
+export const updateTicket = (updatedTicket: Ticket): Ticket => {
+  const index = tickets.findIndex(t => t.id === updatedTicket.id);
+  
+  if (index !== -1) {
+    const updated = {
+      ...updatedTicket,
+      lastUpdated: new Date(),
+    };
+    tickets[index] = updated;
+    return updated;
+  }
+  
+  throw new Error('Ticket not found');
+};
+
+export const getActiveTickets = (): Ticket[] => {
+  return tickets.filter(t => t.status === 'Active');
 };
