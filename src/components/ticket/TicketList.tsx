@@ -12,6 +12,7 @@ import TicketDetail from "./TicketDetail";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 interface TicketListProps {
   onSelect?: (ticket: Ticket) => void;
@@ -119,7 +120,14 @@ const TicketList = ({ onSelect }: TicketListProps) => {
               filteredTickets.map((ticket) => (
                 <TableRow key={ticket.id}>
                   <TableCell className="font-medium">{ticket.reference}</TableCell>
-                  <TableCell>{ticket.employeeName}</TableCell>
+                  <TableCell>
+                    <Link 
+                      to={`/employee/${ticket.employeeId}`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {ticket.employeeName}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     {ticket.origin} → {ticket.destination}
                   </TableCell>

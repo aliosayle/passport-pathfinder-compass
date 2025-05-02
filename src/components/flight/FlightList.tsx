@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Flight, FlightStatus } from "@/types";
-import { flights, flightStatuses } from "@/lib/data";
+import { Flight } from "@/types";
+import { flights, flightStatuses, flightTypes } from "@/lib/data";
 import { Plane, Filter } from "lucide-react";
 import { format } from "date-fns";
 import FlightForm from "./FlightForm";
@@ -12,6 +12,7 @@ import FlightDetail from "./FlightDetail";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 interface FlightListProps {
   onSelect?: (flight: Flight) => void;
@@ -19,21 +20,30 @@ interface FlightListProps {
 
 const FlightList = ({ onSelect }: FlightListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<FlightStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
 
+  // Get unique flight types including custom ones
+  const uniqueFlightTypes = Array.from(
+    new Set([...flightTypes, ...flights.map(flight => flight.type)])
+  );
+
   const filteredFlights = flights.filter(flight => {
     const matchesSearch = 
       flight.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      flight.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       flight.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      flight.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
       flight.airlineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      flight.ticketReference.toLowerCase().includes(searchTerm.toLowerCase());
+      (flight.flightNumber && flight.flightNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === "all" || flight.status === statusFilter;
+    const matchesType = typeFilter === "all" || flight.type === typeFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   const handleViewDetails = (flight: Flight) => {
@@ -46,7 +56,7 @@ const FlightList = ({ onSelect }: FlightListProps) => {
     setIsFormOpen(true);
   };
 
-  const getStatusBadgeColor = (status: FlightStatus) => {
+  const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "Completed":
         return "bg-green-100 text-green-800";
@@ -80,14 +90,25 @@ const FlightList = ({ onSelect }: FlightListProps) => {
         />
         <div className="flex items-center space-x-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as FlightStatus | "all")}>
-            <SelectTrigger className="w-[180px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               {flightStatuses.map((status) => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {uniqueFlightTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -117,7 +138,14 @@ const FlightList = ({ onSelect }: FlightListProps) => {
             ) : (
               filteredFlights.map((flight) => (
                 <TableRow key={flight.id}>
-                  <TableCell className="font-medium">{flight.employeeName}</TableCell>
+                  <TableCell>
+                    <Link 
+                      to={`/employee/${flight.employeeId}`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {flight.employeeName}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     {format(flight.departureDate, "MMM d, yyyy")}
                     {flight.returnDate && (
@@ -132,7 +160,14 @@ const FlightList = ({ onSelect }: FlightListProps) => {
                   <TableCell>
                     {flight.origin} → {flight.destination}
                   </TableCell>
-                  <TableCell>{flight.airlineName}</TableCell>
+                  <TableCell>
+                    {flight.airlineName}
+                    {flight.flightNumber && (
+                      <span className="block text-xs text-muted-foreground">
+                        {flight.flightNumber}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{flight.type}</TableCell>
                   <TableCell>
                     <Badge className={getStatusBadgeColor(flight.status)}>

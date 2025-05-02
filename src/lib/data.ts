@@ -1,4 +1,4 @@
-import { Passport, Nationality, Airline, VisaType, Flight, Ticket, FlightStatus, FlightType } from '@/types';
+import { Passport, Nationality, Airline, VisaType, Flight, Ticket, FlightStatus, FlightType, Employee } from '@/types';
 
 // Helper to calculate days between dates
 export const daysBetweenDates = (date1: Date, date2: Date): number => {
@@ -388,6 +388,68 @@ export const mockTickets: Ticket[] = [
   }
 ];
 
+// Mock employees
+export const mockEmployees: Employee[] = [
+  {
+    id: 'EMP001',
+    name: 'John Smith',
+    department: 'Marketing',
+    position: 'Senior Marketing Manager',
+    email: 'john.smith@example.com',
+    phone: '+971-55-123-4567',
+    nationality: 'United Kingdom',
+    passportId: '1',
+    joinDate: new Date(2019, 1, 15),
+    notes: 'Key account manager for European clients'
+  },
+  {
+    id: 'EMP002',
+    name: 'Sarah Johnson',
+    department: 'Finance',
+    position: 'Financial Analyst',
+    email: 'sarah.johnson@example.com',
+    phone: '+971-55-987-6543',
+    nationality: 'United States',
+    passportId: '2',
+    joinDate: new Date(2020, 3, 10)
+  },
+  {
+    id: 'EMP003',
+    name: 'Ahmed Hassan',
+    department: 'Operations',
+    position: 'Operations Manager',
+    email: 'ahmed.hassan@example.com',
+    phone: '+971-55-456-7890',
+    nationality: 'Egypt',
+    passportId: '3',
+    joinDate: new Date(2018, 5, 22),
+    notes: 'Responsible for MENA region operations'
+  },
+  {
+    id: 'EMP004',
+    name: 'Li Wei',
+    department: 'IT',
+    position: 'System Architect',
+    email: 'li.wei@example.com',
+    phone: '+971-55-321-6540',
+    nationality: 'China',
+    passportId: '4',
+    joinDate: new Date(2021, 8, 5)
+  },
+  {
+    id: 'EMP005',
+    name: 'Maria Garcia',
+    department: 'HR',
+    position: 'HR Director',
+    email: 'maria.garcia@example.com',
+    phone: '+971-55-654-3210',
+    nationality: 'Spain',
+    passportId: '5',
+    joinDate: new Date(2017, 11, 12),
+    notes: 'Leads the talent acquisition team'
+  }
+];
+
 // Custom hook to manage passport data
 export let passports = [...mockPassports];
 
@@ -597,4 +659,57 @@ export const updateTicket = (updatedTicket: Ticket): Ticket => {
 
 export const getActiveTickets = (): Ticket[] => {
   return tickets.filter(t => t.status === 'Active');
+};
+
+// Employees
+export let employees = [...mockEmployees];
+
+export const addEmployee = (employee: Omit<Employee, 'id'>): Employee => {
+  const newEmployee: Employee = {
+    ...employee,
+    id: `EMP${(employees.length + 1).toString().padStart(3, '0')}`,
+  };
+  
+  employees = [...employees, newEmployee];
+  return newEmployee;
+};
+
+export const updateEmployee = (updatedEmployee: Employee): Employee => {
+  const index = employees.findIndex(e => e.id === updatedEmployee.id);
+  
+  if (index !== -1) {
+    employees[index] = updatedEmployee;
+    return updatedEmployee;
+  }
+  
+  throw new Error('Employee not found');
+};
+
+export const getEmployeeById = (id: string): Employee | undefined => {
+  return employees.find(employee => employee.id === id);
+};
+
+export const getEmployeeByName = (name: string): Employee | undefined => {
+  return employees.find(employee => employee.name === name);
+};
+
+export const getAllEmployees = (): Employee[] => {
+  return [...employees];
+};
+
+export const getEmployeePassport = (employeeId: string): Passport | undefined => {
+  return passports.find(passport => passport.employeeId === employeeId);
+};
+
+export const getEmployeeFlights = (employeeId: string): Flight[] => {
+  return flights.filter(flight => flight.employeeId === employeeId);
+};
+
+export const getEmployeeTickets = (employeeId: string): Ticket[] => {
+  return tickets.filter(ticket => ticket.employeeId === employeeId);
+};
+
+export const getEmployeeIdByName = (name: string): string => {
+  const employee = employees.find(e => e.name === name);
+  return employee ? employee.id : '';
 };

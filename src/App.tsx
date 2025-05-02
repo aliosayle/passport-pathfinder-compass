@@ -11,6 +11,8 @@ import TicketsPage from "./pages/TicketsPage";
 import NationalitiesPage from "./pages/NationalitiesPage";
 import AirlinesPage from "./pages/AirlinesPage";
 import VisasPage from "./pages/VisasPage";
+import EmployeePage from "./pages/EmployeePage";
+import EmployeesPage from "./pages/EmployeesPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,8 @@ const App = () => (
           <Route path="/nationalities" element={<NationalitiesPage />} />
           <Route path="/airlines" element={<AirlinesPage />} />
           <Route path="/visas" element={<VisasPage />} />
+          <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/employee/:id" element={<EmployeePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

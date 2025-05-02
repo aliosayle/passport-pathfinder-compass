@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Plane, User, TicketIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
 interface TicketDetailProps {
   ticket: Ticket;
@@ -55,7 +56,12 @@ const TicketDetail = ({ ticket, onEdit, onClose }: TicketDetailProps) => {
                   Employee Information
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">{ticket.employeeName}</p>
+                  <Link 
+                    to={`/employee/${ticket.employeeId}`}
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {ticket.employeeName}
+                  </Link>
                   <p className="text-sm text-muted-foreground">ID: {ticket.employeeId}</p>
                 </div>
               </div>

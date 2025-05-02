@@ -12,6 +12,7 @@ import { Passport } from "@/types";
 import { addPassport, updatePassport } from "@/lib/data";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -72,7 +73,12 @@ const Index = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Passport Management System</h1>
-          <Button onClick={handleAddPassport}>Add New Passport</Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" asChild>
+              <Link to="/employees">View Employees</Link>
+            </Button>
+            <Button onClick={handleAddPassport}>Add New Passport</Button>
+          </div>
         </div>
         
         <Tabs 

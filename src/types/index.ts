@@ -78,3 +78,16 @@ export type Ticket = {
   notes?: string;
   lastUpdated: Date;
 };
+
+export type Employee = {
+  id: string;
+  name: string;
+  department?: string;
+  position?: string;
+  email?: string;
+  phone?: string;
+  nationality?: string;
+  passportId?: string;
+  joinDate?: Date;
+  notes?: string;
+};
