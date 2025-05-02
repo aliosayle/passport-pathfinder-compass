@@ -87,8 +87,15 @@ const PassportForm = ({ passport, onSubmit, onCancel }: PassportFormProps) => {
       return;
     }
     
+    // Ensure employeeName is not undefined before submitting
     onSubmit({
       ...values,
+      employeeName: values.employeeName, // Explicitly include employeeName to satisfy TypeScript
+      employeeId: values.employeeId,
+      passportNumber: values.passportNumber,
+      nationality: values.nationality,
+      issueDate: values.issueDate,
+      expiryDate: values.expiryDate,
       status: finalStatus
     });
   };

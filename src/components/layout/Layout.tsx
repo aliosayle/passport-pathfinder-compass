@@ -27,7 +27,7 @@ const Layout = ({ children }: LayoutProps) => {
           <SidebarContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild active={active === "home"} onClick={() => setActive("home")}>
+                <SidebarMenuButton asChild isActive={active === "home"} onClick={() => setActive("home")}>
                   <a href="/">
                     <Home />
                     <span>Dashboard</span>
@@ -35,7 +35,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild active={active === "employees"} onClick={() => setActive("employees")}>
+                <SidebarMenuButton asChild isActive={active === "employees"} onClick={() => setActive("employees")}>
                   <a href="/employees">
                     <User />
                     <span>Employees</span>
@@ -43,7 +43,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild active={active === "passports"} onClick={() => setActive("passports")}>
+                <SidebarMenuButton asChild isActive={active === "passports"} onClick={() => setActive("passports")}>
                   <a href="/passports">
                     <Calendar />
                     <span>Passports</span>
