@@ -19,7 +19,7 @@ interface FlightListProps {
 
 const FlightList = ({ onSelect }: FlightListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<FlightStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<FlightStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
@@ -31,7 +31,7 @@ const FlightList = ({ onSelect }: FlightListProps) => {
       flight.airlineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       flight.ticketReference.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = !statusFilter || flight.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || flight.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -80,12 +80,12 @@ const FlightList = ({ onSelect }: FlightListProps) => {
         />
         <div className="flex items-center space-x-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as FlightStatus | "")}>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as FlightStatus | "all")}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {flightStatuses.map((status) => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
               ))}
