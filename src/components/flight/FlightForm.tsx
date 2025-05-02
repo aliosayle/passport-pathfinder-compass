@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flight, FlightStatus, FlightType } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +35,27 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
   const [notes, setNotes] = useState(flight?.notes || "");
   const [customType, setCustomType] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isTicketSelected, setIsTicketSelected] = useState(false);
   
   const { toast } = useToast();
+
+  // Get unique employees from tickets
+  const uniqueEmployees = Array.from(
+    new Set(tickets.map(ticket => ticket.employeeName))
+  );
+
+  // Map of employee names to their IDs
+  const employeeMap = tickets.reduce<Record<string, string>>((acc, ticket) => {
+    acc[ticket.employeeName] = ticket.employeeId;
+    return acc;
+  }, {});
+
+  // Update employee ID when employee name changes
+  useEffect(() => {
+    if (employeeMap[employeeName]) {
+      setEmployeeId(employeeMap[employeeName]);
+    }
+  }, [employeeName]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -96,6 +115,23 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
       setAirlineId(ticket.airlineId);
       setAirlineName(ticket.airlineName);
       setFlightNumber(ticket.flightNumber || "");
+      setIsTicketSelected(true);
+    }
+  };
+
+  const handleEmployeeChange = (name: string) => {
+    setEmployeeName(name);
+    if (employeeMap[name]) {
+      setEmployeeId(employeeMap[name]);
+      
+      // Find most recent ticket for this employee
+      const employeeTickets = tickets.filter(t => t.employeeName === name)
+        .sort((a, b) => b.issueDate.getTime() - a.issueDate.getTime());
+      
+      if (employeeTickets.length > 0) {
+        const latestTicket = employeeTickets[0];
+        setTicketReference(latestTicket.reference);
+      }
     }
   };
 
@@ -186,9 +222,9 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="ticket">From Ticket</Label>
-          <Select onValueChange={handleTicketChange}>
+          <Select value={ticketReference} onValueChange={handleTicketChange}>
             <SelectTrigger id="ticket">
-              <SelectValue placeholder="Select a ticket (optional)" />
+              <SelectValue placeholder="Select a ticket" />
             </SelectTrigger>
             <SelectContent>
               {tickets.map((ticket) => (
@@ -198,18 +234,26 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">Selecting a ticket will automatically fill in flight details</p>
         </div>
         
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="employeeName">Employee Name</Label>
-            <Input
-              id="employeeName"
-              value={employeeName}
-              onChange={(e) => setEmployeeName(e.target.value)}
-              placeholder="John Smith"
-              className={errors.employeeName ? "border-destructive" : ""}
-            />
+            <Select 
+              value={employeeName} 
+              onValueChange={handleEmployeeChange}
+              disabled={isTicketSelected}
+            >
+              <SelectTrigger id="employeeName" className={errors.employeeName ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select an employee" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueEmployees.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.employeeName && <p className="text-sm text-destructive">{errors.employeeName}</p>}
           </div>
           
@@ -221,7 +265,9 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               onChange={(e) => setEmployeeId(e.target.value)}
               placeholder="EMP001"
               className={errors.employeeId ? "border-destructive" : ""}
+              readOnly={true}
             />
+            <p className="text-xs text-muted-foreground">Auto-filled from employee selection</p>
             {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId}</p>}
           </div>
         </div>
@@ -239,6 +285,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
                     !departureDate && "text-muted-foreground",
                     errors.departureDate && "border-destructive"
                   )}
+                  disabled={isTicketSelected}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {departureDate ? format(departureDate, "PPP") : <span>Pick a date</span>}
@@ -268,6 +315,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
                     !returnDate && "text-muted-foreground",
                     errors.returnDate && "border-destructive"
                   )}
+                  disabled={isTicketSelected}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {returnDate ? format(returnDate, "PPP") : <span>Pick a date</span>}
@@ -295,6 +343,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               onChange={(e) => setOrigin(e.target.value)}
               placeholder="Dubai"
               className={errors.origin ? "border-destructive" : ""}
+              readOnly={isTicketSelected}
             />
             {errors.origin && <p className="text-sm text-destructive">{errors.origin}</p>}
           </div>
@@ -307,6 +356,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               onChange={(e) => setDestination(e.target.value)}
               placeholder="London"
               className={errors.destination ? "border-destructive" : ""}
+              readOnly={isTicketSelected}
             />
             {errors.destination && <p className="text-sm text-destructive">{errors.destination}</p>}
           </div>
@@ -315,7 +365,11 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="airline">Airline</Label>
-            <Select value={airlineId} onValueChange={handleAirlineChange}>
+            <Select 
+              value={airlineId} 
+              onValueChange={handleAirlineChange}
+              disabled={isTicketSelected}
+            >
               <SelectTrigger id="airline" className={errors.airlineId ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select an airline" />
               </SelectTrigger>
@@ -337,6 +391,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               value={flightNumber}
               onChange={(e) => setFlightNumber(e.target.value)}
               placeholder="BA106"
+              readOnly={isTicketSelected}
             />
           </div>
         </div>
@@ -350,6 +405,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
               onChange={(e) => setTicketReference(e.target.value)}
               placeholder="T12345"
               className={errors.ticketReference ? "border-destructive" : ""}
+              readOnly={isTicketSelected}
             />
             {errors.ticketReference && <p className="text-sm text-destructive">{errors.ticketReference}</p>}
           </div>
