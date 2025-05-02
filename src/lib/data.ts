@@ -1,4 +1,4 @@
-import { Passport, Nationality, Airline, VisaType, Flight, Ticket, FlightStatus, FlightType, Employee } from '@/types';
+import { Passport, Nationality, Airline, VisaType, Flight, Ticket, FlightStatus, FlightType, Employee, MoneyTransfer } from '@/types';
 
 // Helper to calculate days between dates
 export const daysBetweenDates = (date1: Date, date2: Date): number => {
@@ -450,6 +450,65 @@ export const mockEmployees: Employee[] = [
   }
 ];
 
+// Mock money transfers
+export const mockTransfers: MoneyTransfer[] = [
+  {
+    id: '1',
+    employeeId: 'EMP001',
+    employeeName: 'John Smith',
+    amount: 1500,
+    currency: 'USD',
+    destination: 'United Kingdom',
+    beneficiaryName: 'Sarah Smith',
+    beneficiaryPhone: '+44 123 456 7890',
+    notes: 'Monthly family support',
+    status: 'Completed',
+    date: new Date(2023, 10, 15),
+    lastUpdated: new Date(2023, 10, 15)
+  },
+  {
+    id: '2',
+    employeeId: 'EMP001',
+    employeeName: 'John Smith',
+    amount: 2000,
+    currency: 'USD',
+    destination: 'United Kingdom',
+    beneficiaryName: 'Sarah Smith',
+    beneficiaryPhone: '+44 123 456 7890',
+    notes: 'Education expenses',
+    status: 'Completed',
+    date: new Date(2024, 1, 10),
+    lastUpdated: new Date(2024, 1, 10)
+  },
+  {
+    id: '3',
+    employeeId: 'EMP002',
+    employeeName: 'Sarah Johnson',
+    amount: 1200,
+    currency: 'USD',
+    destination: 'United States',
+    beneficiaryName: 'Robert Johnson',
+    beneficiaryPhone: '+1 234 567 8901',
+    notes: 'Family support',
+    status: 'Completed',
+    date: new Date(2023, 11, 20),
+    lastUpdated: new Date(2023, 11, 20)
+  },
+  {
+    id: '4',
+    employeeId: 'EMP003',
+    employeeName: 'Ahmed Hassan',
+    amount: 800,
+    currency: 'USD',
+    destination: 'Egypt',
+    beneficiaryName: 'Fatima Hassan',
+    beneficiaryPhone: '+20 123 456 7890',
+    status: 'Pending',
+    date: new Date(2024, 4, 28),
+    lastUpdated: new Date(2024, 4, 28)
+  }
+];
+
 // Custom hook to manage passport data
 export let passports = [...mockPassports];
 
@@ -712,4 +771,57 @@ export const getEmployeeTickets = (employeeId: string): Ticket[] => {
 export const getEmployeeIdByName = (name: string): string => {
   const employee = employees.find(e => e.name === name);
   return employee ? employee.id : '';
+};
+
+// Transfers
+export let transfers = [...mockTransfers];
+
+export const addTransfer = (transfer: Omit<MoneyTransfer, 'id' | 'date' | 'lastUpdated' | 'status'>): MoneyTransfer => {
+  const newTransfer: MoneyTransfer = {
+    ...transfer,
+    id: (transfers.length + 1).toString(),
+    date: new Date(),
+    lastUpdated: new Date(),
+    status: 'Pending'
+  };
+  
+  transfers = [...transfers, newTransfer];
+  return newTransfer;
+};
+
+export const updateTransfer = (updatedTransfer: MoneyTransfer): MoneyTransfer => {
+  const index = transfers.findIndex(t => t.id === updatedTransfer.id);
+  
+  if (index !== -1) {
+    const updated = {
+      ...updatedTransfer,
+      lastUpdated: new Date(),
+    };
+    transfers[index] = updated;
+    return updated;
+  }
+  
+  throw new Error('Transfer not found');
+};
+
+export const completeTransfer = (id: string): MoneyTransfer => {
+  const transfer = transfers.find(t => t.id === id);
+  
+  if (!transfer) {
+    throw new Error('Transfer not found');
+  }
+  
+  const updatedTransfer = {
+    ...transfer,
+    status: 'Completed' as const,
+    lastUpdated: new Date()
+  };
+  
+  return updateTransfer(updatedTransfer);
+};
+
+export const getEmployeeTransfers = (employeeId: string): MoneyTransfer[] => {
+  return transfers
+    .filter(transfer => transfer.employeeId === employeeId)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 };

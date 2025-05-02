@@ -1,4 +1,3 @@
-
 export type PassportStatus = 'With Company' | 'With Employee' | 'With DGM' | string;
 
 export type Passport = {
@@ -90,4 +89,19 @@ export type Employee = {
   passportId?: string;
   joinDate?: Date;
   notes?: string;
+};
+
+export type MoneyTransfer = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  amount: number;
+  currency: string;
+  destination: string;
+  beneficiaryName: string;
+  beneficiaryPhone: string;
+  notes?: string;
+  status: 'Pending' | 'Completed' | 'Failed';
+  date: Date;
+  lastUpdated: Date;
 };

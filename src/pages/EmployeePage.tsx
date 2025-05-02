@@ -1,5 +1,4 @@
-
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getEmployeeById, getEmployeePassport, getEmployeeFlights, getEmployeeTickets } from "@/lib/data";
-import { User, Ticket as TicketIcon, Plane, Calendar } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { User, Ticket as TicketIcon, Plane, Calendar, Banknote } from "lucide-react";
+import TransferForm from "@/components/transfer/TransferForm";
+import TransferHistory from "@/components/transfer/TransferHistory";
 
 const EmployeePage = () => {
   const { id } = useParams();
@@ -130,10 +130,12 @@ const EmployeePage = () => {
           <Card className="col-span-1 md:col-span-2">
             <Tabs defaultValue="passport" className="w-full">
               <CardHeader className="pb-0">
-                <TabsList className="grid grid-cols-3">
+                <TabsList className="grid grid-cols-5">
                   <TabsTrigger value="passport">Passport</TabsTrigger>
                   <TabsTrigger value="flights">Flights</TabsTrigger>
                   <TabsTrigger value="tickets">Tickets</TabsTrigger>
+                  <TabsTrigger value="transfer">Send Money</TabsTrigger>
+                  <TabsTrigger value="transferHistory">Transfer History</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <CardContent className="pt-6">
@@ -321,6 +323,22 @@ const EmployeePage = () => {
                       <p className="text-muted-foreground">No ticket information available</p>
                     </div>
                   )}
+                </TabsContent>
+                
+                <TabsContent value="transfer" className="space-y-4">
+                  <div className="flex items-center mb-4 space-x-2">
+                    <Banknote className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Send Money to {employee.name}</h3>
+                  </div>
+                  <TransferForm />
+                </TabsContent>
+                
+                <TabsContent value="transferHistory" className="space-y-4">
+                  <div className="flex items-center mb-4 space-x-2">
+                    <Banknote className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Transfer History</h3>
+                  </div>
+                  <TransferHistory />
                 </TabsContent>
               </CardContent>
             </Tabs>
