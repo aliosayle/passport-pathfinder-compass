@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,12 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Passport, PassportStatus } from "@/types";
-import { useState } from "react";
+import { Passport, PassportStatus, Employee } from "@/types";
+import { useState, useEffect } from "react";
 import { standardStatuses } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { employeeService } from "@/services/employeeService";
+import { passportService } from "@/services/passportService";
+import { nationalityService, Nationality } from "@/services/nationalityService";
 
 interface PassportFormProps {
   passport?: Passport;
@@ -25,8 +27,7 @@ interface PassportFormProps {
 }
 
 const formSchema = z.object({
-  employeeName: z.string().min(2, "Employee name is required"),
-  employeeId: z.string().min(1, "Employee ID is required"),
+  employeeId: z.string().min(1, "Employee selection is required"),
   passportNumber: z.string().min(1, "Passport number is required"),
   nationality: z.string().min(1, "Nationality is required"),
   issueDate: z.date({ required_error: "Issue date is required" }),
@@ -39,22 +40,94 @@ const formSchema = z.object({
 const PassportForm = ({ passport, onSubmit, onCancel }: PassportFormProps) => {
   const [customStatus, setCustomStatus] = useState("");
   const [showCustomStatus, setShowCustomStatus] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [nationalities, setNationalities] = useState<Nationality[]>([]);
+  const [loadingNationalities, setLoadingNationalities] = useState(false);
   const { toast } = useToast();
+  
+  // Fetch nationalities for dropdown
+  useEffect(() => {
+    const fetchNationalities = async () => {
+      try {
+        setLoadingNationalities(true);
+        const data = await nationalityService.getAll();
+        setNationalities(data);
+        setLoadingNationalities(false);
+      } catch (error) {
+        console.error("Error fetching nationalities:", error);
+        setLoadingNationalities(false);
+      }
+    };
+    
+    fetchNationalities();
+  }, []);
+  
+  // Fetch employees for dropdown
+  useEffect(() => {
+    const fetchEmployeesAndPassports = async () => {
+      try {
+        setLoadingEmployees(true);
+        
+        // Get all employees
+        const employeeData = await employeeService.getAll();
+        setEmployees(employeeData);
+        
+        // Get all passports to filter out employees who already have passports
+        const passportData = await passportService.getAll();
+        
+        // Create a Set of employee IDs who already have passports
+        const employeeIdsWithPassports = new Set(
+          passportData.map((p: Passport) => p.employee_id || p.employeeId)
+        );
+        
+        // Filter out employees who already have passports, except the current one being edited
+        const filteredEmployees = employeeData.filter(emp => {
+          // If editing a passport, allow its employee to show in the dropdown
+          if (passport && (passport.employeeId === emp.id || passport.employee_id === emp.id)) {
+            return true;
+          }
+          // Otherwise filter out employees who already have passports
+          return !employeeIdsWithPassports.has(emp.id);
+        });
+        
+        setAvailableEmployees(filteredEmployees);
+        setLoadingEmployees(false);
+        
+        // If editing existing passport, set the selected employee
+        if (passport) {
+          const matchingEmployee = employeeData.find(
+            emp => emp.id === (passport.employeeId || passport.employee_id)
+          );
+          if (matchingEmployee) {
+            setSelectedEmployee(matchingEmployee);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+        setLoadingEmployees(false);
+      }
+    };
+    
+    fetchEmployeesAndPassports();
+  }, [passport]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: passport ? {
-      employeeName: passport.employeeName,
-      employeeId: passport.employeeId,
-      passportNumber: passport.passportNumber,
+      employeeId: passport.employeeId || passport.employee_id,
+      passportNumber: passport.passportNumber || passport.passport_number,
       nationality: passport.nationality,
-      issueDate: passport.issueDate,
-      expiryDate: passport.expiryDate,
+      issueDate: passport.issueDate ? new Date(passport.issueDate) : 
+                passport.issue_date ? new Date(passport.issue_date) : undefined,
+      expiryDate: passport.expiryDate ? new Date(passport.expiryDate) : 
+                 passport.expiry_date ? new Date(passport.expiry_date) : undefined,
       status: standardStatuses.includes(passport.status) ? passport.status : "custom",
-      ticketReference: passport.ticketReference || "",
+      ticketReference: passport.ticketReference || passport.ticket_reference || "",
       notes: passport.notes || "",
     } : {
-      employeeName: "",
       employeeId: "",
       passportNumber: "",
       nationality: "",
@@ -87,16 +160,28 @@ const PassportForm = ({ passport, onSubmit, onCancel }: PassportFormProps) => {
       return;
     }
     
-    // Ensure employeeName is not undefined before submitting
+    // Get the employee name from the selected ID
+    const employee = employees.find(emp => emp.id === values.employeeId);
+    if (!employee) {
+      toast({
+        title: "Invalid Employee",
+        description: "Please select a valid employee",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Submit with both employee ID and name
     onSubmit({
-      ...values,
-      employeeName: values.employeeName, // Explicitly include employeeName to satisfy TypeScript
+      employeeName: employee.name,
       employeeId: values.employeeId,
       passportNumber: values.passportNumber,
       nationality: values.nationality,
       issueDate: values.issueDate,
       expiryDate: values.expiryDate,
-      status: finalStatus
+      status: finalStatus,
+      ticketReference: values.ticketReference,
+      notes: values.notes
     });
   };
 
@@ -117,28 +202,51 @@ const PassportForm = ({ passport, onSubmit, onCancel }: PassportFormProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="employeeName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employee Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Smith" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
                 name="employeeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employee ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="EMP001" {...field} />
-                    </FormControl>
+                    <FormLabel>Employee</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const employee = employees.find(emp => emp.id === value);
+                        if (employee) {
+                          setSelectedEmployee(employee);
+                        }
+                      }}
+                      value={field.value}
+                      disabled={loadingEmployees}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingEmployees ? "Loading employees..." : "Select employee"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {loadingEmployees ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Loading employees...</span>
+                          </div>
+                        ) : availableEmployees.length === 0 ? (
+                          <div className="p-2 text-center text-muted-foreground">
+                            No employees without passports available
+                          </div>
+                        ) : (
+                          availableEmployees.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.name} ({employee.id})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
+                    {selectedEmployee && (
+                      <FormDescription>
+                        ID: {selectedEmployee.id} • Department: {selectedEmployee.department || "Not specified"}
+                      </FormDescription>
+                    )}
                   </FormItem>
                 )}
               />
@@ -163,9 +271,35 @@ const PassportForm = ({ passport, onSubmit, onCancel }: PassportFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nationality</FormLabel>
-                    <FormControl>
-                      <Input placeholder="United Kingdom" {...field} />
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={loadingNationalities}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingNationalities ? "Loading nationalities..." : "Select nationality"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {loadingNationalities ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Loading nationalities...</span>
+                          </div>
+                        ) : nationalities.length === 0 ? (
+                          <div className="p-2 text-center text-muted-foreground">
+                            No nationalities available
+                          </div>
+                        ) : (
+                          nationalities.map((nationality) => (
+                            <SelectItem key={nationality.id} value={nationality.name}>
+                              {nationality.name} ({nationality.code})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

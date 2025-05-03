@@ -1,52 +1,169 @@
-
 import { useState, useEffect } from "react";
-import { Flight, FlightStatus, FlightType } from "@/types";
+import { Flight } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { addFlight, updateFlight, flightStatuses, flightTypes, airlines, tickets } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { flightService } from "@/services/flightService";
+import { employeeService } from "@/services/employeeService";
+import { airlineService } from "@/services/airlineService";
+import { ticketService } from "@/services/ticketService";
+
+// Define flight statuses and types
+const flightStatuses = ["Pending", "Completed", "Cancelled", "Delayed"];
+const flightTypes = ["Business", "Vacation", "Sick Leave", "Family Emergency", "Training"];
 
 interface FlightFormProps {
   flight?: Flight;
+  onSubmit: (flight: Flight) => void;
   onClose: () => void;
 }
 
-const FlightForm = ({ flight, onClose }: FlightFormProps) => {
-  const [employeeName, setEmployeeName] = useState(flight?.employeeName || "");
-  const [employeeId, setEmployeeId] = useState(flight?.employeeId || "");
-  const [departureDate, setDepartureDate] = useState<Date | undefined>(flight?.departureDate);
-  const [returnDate, setReturnDate] = useState<Date | undefined>(flight?.returnDate);
+type Employee = {
+  id: string;
+  name: string;
+};
+
+type Airline = {
+  id: string;
+  name: string;
+  code: string;
+};
+
+type Ticket = {
+  id: string;
+  reference: string;
+  employee_id: string;
+  employee_name: string;
+  departure_date: string;
+  return_date?: string;
+  destination: string;
+  origin: string;
+  airline_id: string;
+  airline_name: string;
+  flight_number?: string;
+};
+
+const FlightForm = ({ flight, onSubmit, onClose }: FlightFormProps) => {
+  // Form state
+  const [employeeName, setEmployeeName] = useState(flight?.employee_name || flight?.employeeName || "");
+  const [employeeId, setEmployeeId] = useState(flight?.employee_id || flight?.employeeId || "");
+  const [departureDate, setDepartureDate] = useState<Date | undefined>(
+    flight?.departure_date ? parseISO(flight.departure_date as string) : 
+    flight?.departureDate ? flight.departureDate : 
+    undefined
+  );
+  const [returnDate, setReturnDate] = useState<Date | undefined>(
+    flight?.return_date ? parseISO(flight.return_date as string) : 
+    flight?.returnDate ? flight.returnDate : 
+    undefined
+  );
   const [destination, setDestination] = useState(flight?.destination || "");
   const [origin, setOrigin] = useState(flight?.origin || "");
-  const [airlineId, setAirlineId] = useState(flight?.airlineId || "");
-  const [airlineName, setAirlineName] = useState(flight?.airlineName || "");
-  const [ticketReference, setTicketReference] = useState(flight?.ticketReference || "");
-  const [flightNumber, setFlightNumber] = useState(flight?.flightNumber || "");
-  const [status, setStatus] = useState<FlightStatus>(flight?.status || "Pending");
-  const [type, setType] = useState<FlightType>(flight?.type || "Business");
+  const [airlineId, setAirlineId] = useState(flight?.airline_id || flight?.airlineId || "");
+  const [airlineName, setAirlineName] = useState(flight?.airline_name || flight?.airlineName || "");
+  const [ticketReference, setTicketReference] = useState(flight?.ticket_reference || flight?.ticketReference || "");
+  const [flightNumber, setFlightNumber] = useState(flight?.flight_number || flight?.flightNumber || "");
+  const [status, setStatus] = useState(flight?.status || "Pending");
+  const [type, setType] = useState(flight?.type || flight?.flight_type || "Business");
   const [notes, setNotes] = useState(flight?.notes || "");
   const [customType, setCustomType] = useState("");
+  
+  // Data loading states
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState({
+    employees: false,
+    airlines: false,
+    tickets: false
+  });
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isTicketSelected, setIsTicketSelected] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
 
-  // Get unique employees from tickets
-  const uniqueEmployees = Array.from(
-    new Set(tickets.map(ticket => ticket.employeeName))
-  );
+  // Fetch employees
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(prev => ({ ...prev, employees: true }));
+        const data = await employeeService.getAll();
+        setEmployees(data.map(employee => ({
+          id: employee.id,
+          name: employee.name || `${employee.first_name} ${employee.last_name}`
+        })));
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load employee data.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(prev => ({ ...prev, employees: false }));
+      }
+    };
 
-  // Map of employee names to their IDs
-  const employeeMap = tickets.reduce<Record<string, string>>((acc, ticket) => {
-    acc[ticket.employeeName] = ticket.employeeId;
+    fetchEmployees();
+  }, []);
+
+  // Fetch airlines
+  useEffect(() => {
+    const fetchAirlines = async () => {
+      try {
+        setLoading(prev => ({ ...prev, airlines: true }));
+        const data = await airlineService.getAll();
+        setAirlines(data);
+      } catch (error) {
+        console.error("Error fetching airlines:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load airline data.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(prev => ({ ...prev, airlines: false }));
+      }
+    };
+
+    fetchAirlines();
+  }, []);
+
+  // Fetch tickets
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        setLoading(prev => ({ ...prev, tickets: true }));
+        const data = await ticketService.getAll();
+        setTickets(data);
+      } catch (error) {
+        console.error("Error fetching tickets:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load ticket data.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(prev => ({ ...prev, tickets: false }));
+      }
+    };
+
+    fetchTickets();
+  }, []);
+
+  // Create a map of employee names to their IDs
+  const employeeMap = employees.reduce<Record<string, string>>((acc, employee) => {
+    acc[employee.name] = employee.id;
     return acc;
   }, {});
 
@@ -55,7 +172,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
     if (employeeMap[employeeName]) {
       setEmployeeId(employeeMap[employeeName]);
     }
-  }, [employeeName]);
+  }, [employeeName, employeeMap]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -99,22 +216,24 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
   const handleAirlineChange = (id: string) => {
     setAirlineId(id);
     const airline = airlines.find(a => a.id === id);
-    setAirlineName(airline?.name || "");
+    if (airline) {
+      setAirlineName(airline.name);
+    }
   };
 
   const handleTicketChange = (reference: string) => {
     setTicketReference(reference);
     const ticket = tickets.find(t => t.reference === reference);
     if (ticket) {
-      setEmployeeName(ticket.employeeName);
-      setEmployeeId(ticket.employeeId);
-      setDepartureDate(ticket.departureDate);
-      setReturnDate(ticket.returnDate);
+      setEmployeeName(ticket.employee_name);
+      setEmployeeId(ticket.employee_id);
+      setDepartureDate(parseISO(ticket.departure_date));
+      setReturnDate(ticket.return_date ? parseISO(ticket.return_date) : undefined);
       setDestination(ticket.destination);
       setOrigin(ticket.origin);
-      setAirlineId(ticket.airlineId);
-      setAirlineName(ticket.airlineName);
-      setFlightNumber(ticket.flightNumber || "");
+      setAirlineId(ticket.airline_id);
+      setAirlineName(ticket.airline_name);
+      setFlightNumber(ticket.flight_number || "");
       setIsTicketSelected(true);
     }
   };
@@ -125,8 +244,9 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
       setEmployeeId(employeeMap[name]);
       
       // Find most recent ticket for this employee
-      const employeeTickets = tickets.filter(t => t.employeeName === name)
-        .sort((a, b) => b.issueDate.getTime() - a.issueDate.getTime());
+      const employeeTickets = tickets
+        .filter(t => t.employee_name === name || t.employee_id === employeeMap[name])
+        .sort((a, b) => new Date(b.departure_date).getTime() - new Date(a.departure_date).getTime());
       
       if (employeeTickets.length > 0) {
         const latestTicket = employeeTickets[0];
@@ -138,9 +258,10 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
   const handleTypeChange = (selectedType: string) => {
     if (selectedType === "custom") {
       // Don't change the type yet, wait for custom input
+      setCustomType(type);
       return;
     }
-    setType(selectedType as FlightType);
+    setType(selectedType);
   };
 
   const handleCustomTypeSubmit = () => {
@@ -149,7 +270,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) {
@@ -159,59 +280,67 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
     const finalType = type === "custom" ? customType : type;
     
     try {
+      setIsSubmitting(true);
+      
+      const flightData: Flight = {
+        id: flight?.id || `FLIGHT${Date.now().toString().slice(-6)}`,
+        employee_name: employeeName,
+        employee_id: employeeId,
+        departure_date: departureDate!.toISOString(),
+        return_date: returnDate?.toISOString(),
+        destination,
+        origin,
+        airline_id: airlineId,
+        airline_name: airlineName,
+        ticket_reference: ticketReference,
+        flight_number: flightNumber || undefined,
+        status: status as 'Pending' | 'Completed' | 'Cancelled' | 'Delayed',
+        type: finalType,
+        notes: notes || undefined,
+        last_updated: new Date().toISOString()
+      };
+      
       if (flight) {
-        // Update existing
-        updateFlight({
-          ...flight,
-          employeeName,
-          employeeId,
-          departureDate: departureDate!,
-          returnDate,
-          destination,
-          origin,
-          airlineId,
-          airlineName,
-          ticketReference,
-          flightNumber: flightNumber || undefined,
-          status,
-          type: finalType,
-          notes: notes || undefined,
-        });
+        // Update existing flight
+        await flightService.update(flight.id, flightData);
         toast({
           title: "Flight Updated",
           description: `Flight details for ${employeeName} have been updated successfully.`
         });
       } else {
-        // Create new
-        addFlight({
-          employeeName,
-          employeeId,
-          departureDate: departureDate!,
-          returnDate,
-          destination,
-          origin,
-          airlineId,
-          airlineName,
-          ticketReference,
-          flightNumber: flightNumber || undefined,
-          status,
-          type: finalType,
-          notes: notes || undefined,
-        });
+        // Create new flight
+        await flightService.create(flightData);
         toast({
           title: "Flight Added",
           description: `New flight for ${employeeName} has been added successfully.`
         });
       }
-      onClose();
+      
+      // Call the onSubmit callback provided by parent component
+      onSubmit(flightData);
+      
     } catch (error) {
+      console.error("Error saving flight:", error);
       toast({
         title: "Error",
         description: "There was an error processing the flight data.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const isLoading = loading.employees || loading.airlines || loading.tickets;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p>Loading flight form data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -229,7 +358,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
             <SelectContent>
               {tickets.map((ticket) => (
                 <SelectItem key={ticket.id} value={ticket.reference}>
-                  {ticket.reference} - {ticket.employeeName} ({ticket.destination})
+                  {ticket.reference} - {ticket.employee_name} ({ticket.destination})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -249,8 +378,8 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
                 <SelectValue placeholder="Select an employee" />
               </SelectTrigger>
               <SelectContent>
-                {uniqueEmployees.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.name}>{employee.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -412,7 +541,7 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
           
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value as FlightStatus)}>
+            <Select value={status} onValueChange={setStatus}>
               <SelectTrigger id="status">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -440,15 +569,18 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
                   <SelectItem value="custom">Custom...</SelectItem>
                 </SelectContent>
               </Select>
-              {type !== customType && !flightTypes.includes(type) && (
-                <Button type="button" variant="outline" onClick={() => setType("custom")}>
+              {type !== customType && !flightTypes.includes(type as any) && (
+                <Button type="button" variant="outline" onClick={() => {
+                  setCustomType(type);
+                  setType("custom");
+                }}>
                   Edit
                 </Button>
               )}
             </div>
           </div>
           
-          {(type === "custom" || (type !== customType && !flightTypes.includes(type))) && (
+          {(type === "custom" || (type !== customType && !flightTypes.includes(type as any))) && (
             <div className="space-y-2">
               <Label htmlFor="customType">Custom Type</Label>
               <div className="flex gap-2">
@@ -478,11 +610,17 @@ const FlightForm = ({ flight, onClose }: FlightFormProps) => {
         </div>
         
         <div className="flex justify-end space-x-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">
-            {flight ? "Update Flight" : "Add Flight"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </> : 
+              flight ? "Update Flight" : "Add Flight"
+            }
           </Button>
         </div>
       </form>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Nationality } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -6,17 +5,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { addNationality, updateNationality } from "@/lib/data";
 
 interface NationalityFormProps {
   nationality?: Nationality;
+  onSubmit: (data: Nationality) => void;
   onClose: () => void;
 }
 
-const NationalityForm = ({ nationality, onClose }: NationalityFormProps) => {
+const NationalityForm = ({ nationality, onSubmit, onClose }: NationalityFormProps) => {
   const [name, setName] = useState(nationality?.name || "");
   const [code, setCode] = useState(nationality?.code || "");
-  const [visaRequirements, setVisaRequirements] = useState(nationality?.visaRequirements || "");
+  const [visaRequirements, setVisaRequirements] = useState(
+    nationality?.visa_requirements || nationality?.visaRequirements || ""
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
@@ -29,7 +31,7 @@ const NationalityForm = ({ nationality, onClose }: NationalityFormProps) => {
     
     if (!code.trim()) {
       newErrors.code = "Code is required";
-    } else if (code.length > 3) {
+    } else if (code.length > 3 || code.length < 2) {
       newErrors.code = "Country code should be 2-3 characters";
     }
     
@@ -37,7 +39,7 @@ const NationalityForm = ({ nationality, onClose }: NationalityFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) {
@@ -45,46 +47,31 @@ const NationalityForm = ({ nationality, onClose }: NationalityFormProps) => {
     }
 
     try {
-      if (nationality) {
-        // Update existing
-        updateNationality({
-          ...nationality,
-          name,
-          code,
-          visaRequirements: visaRequirements || undefined,
-        });
-        toast({
-          title: "Nationality Updated",
-          description: `${name} has been updated successfully.`
-        });
-      } else {
-        // Create new
-        addNationality({
-          name,
-          code,
-          visaRequirements: visaRequirements || undefined,
-        });
-        toast({
-          title: "Nationality Added",
-          description: `${name} has been added successfully.`
-        });
-      }
-      onClose();
+      setIsSubmitting(true);
+      
+      const nationalityData: Nationality = {
+        id: nationality?.id || `NAT${Date.now().toString().slice(-6)}`,
+        name,
+        code,
+        visa_requirements: visaRequirements || undefined
+      };
+      
+      // Submit data to parent component
+      await onSubmit(nationalityData);
+      
     } catch (error) {
       toast({
         title: "Error",
         description: "There was an error processing the nationality data.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">
-        {nationality ? "Edit Nationality" : "Add New Nationality"}
-      </h3>
-      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -125,11 +112,11 @@ const NationalityForm = ({ nationality, onClose }: NationalityFormProps) => {
         </div>
         
         <div className="flex justify-end space-x-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">
-            {nationality ? "Update Nationality" : "Add Nationality"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : nationality ? "Update Nationality" : "Add Nationality"}
           </Button>
         </div>
       </form>

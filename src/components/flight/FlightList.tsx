@@ -1,18 +1,22 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Flight } from "@/types";
-import { flights, flightStatuses, flightTypes } from "@/lib/data";
-import { Plane, Filter } from "lucide-react";
-import { format } from "date-fns";
+import { Plane, Filter, Loader2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import FlightForm from "./FlightForm";
 import FlightDetail from "./FlightDetail";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { flightService } from "@/services/flightService";
+import { useToast } from "@/hooks/use-toast";
+
+// Define flight statuses and types
+const flightStatuses = ["Pending", "Completed", "Cancelled", "Delayed"];
+const flightTypes = ["Business", "Vacation", "Sick Leave", "Family Emergency", "Training"];
 
 interface FlightListProps {
   onSelect?: (flight: Flight) => void;
@@ -25,23 +29,56 @@ const FlightList = ({ onSelect }: FlightListProps) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { toast } = useToast();
 
-  // Get unique flight types including custom ones
+  // Fetch flights from API
+  const fetchFlights = async () => {
+    try {
+      setLoading(true);
+      const data = await flightService.getAll();
+      setFlights(data);
+      setError("");
+    } catch (err) {
+      console.error("Error fetching flights:", err);
+      setError("Failed to load flight data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFlights();
+  }, []);
+
+  // Get unique flight types from existing data
   const uniqueFlightTypes = Array.from(
-    new Set([...flightTypes, ...flights.map(flight => flight.type)])
+    new Set([
+      ...flightTypes,
+      ...flights.map(flight => flight.type || flight.flight_type)
+        .filter(Boolean)
+    ])
   );
 
   const filteredFlights = flights.filter(flight => {
     const matchesSearch = 
-      flight.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      flight.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      flight.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      flight.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      flight.airlineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (flight.flightNumber && flight.flightNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      (flight.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+       flight.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+      (flight.employee_id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+       flight.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+      (flight.destination?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+      (flight.origin?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+      (flight.airline_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+       flight.airlineName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+      ((flight.flight_number || flight.flightNumber || '').toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = statusFilter === "all" || flight.status === statusFilter;
-    const matchesType = typeFilter === "all" || flight.type === typeFilter;
+    const flightStatus = flight.status || "";
+    const flightType = flight.type || flight.flight_type || "";
+    
+    const matchesStatus = statusFilter === "all" || flightStatus === statusFilter;
+    const matchesType = typeFilter === "all" || flightType === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
   });
@@ -56,6 +93,25 @@ const FlightList = ({ onSelect }: FlightListProps) => {
     setIsFormOpen(true);
   };
 
+  const handleDeleteFlight = async (flightId: string) => {
+    try {
+      await flightService.delete(flightId);
+      toast({
+        title: "Flight Deleted",
+        description: "The flight has been successfully deleted.",
+      });
+      fetchFlights(); // Refresh the list
+      setIsDetailOpen(false);
+    } catch (error) {
+      console.error("Error deleting flight:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the flight. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "Completed":
@@ -68,6 +124,16 @@ const FlightList = ({ onSelect }: FlightListProps) => {
         return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Parse dates safely
+  const parseDate = (dateInput: string | Date | undefined) => {
+    if (!dateInput) return null;
+    try {
+      return typeof dateInput === 'string' ? parseISO(dateInput) : dateInput;
+    } catch {
+      return null;
     }
   };
 
@@ -108,102 +174,124 @@ const FlightList = ({ onSelect }: FlightListProps) => {
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {uniqueFlightTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem key={type as string} value={type as string}>{type as string}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead>Route</TableHead>
-              <TableHead>Airline</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredFlights.length === 0 ? (
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading flight data...</span>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No flights found
-                </TableCell>
+                <TableHead>Employee</TableHead>
+                <TableHead>Dates</TableHead>
+                <TableHead>Route</TableHead>
+                <TableHead>Airline</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredFlights.map((flight) => (
-                <TableRow key={flight.id}>
-                  <TableCell>
-                    <Link 
-                      to={`/employee/${flight.employeeId}`}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {flight.employeeName}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {format(flight.departureDate, "MMM d, yyyy")}
-                    {flight.returnDate && (
-                      <>
-                        <br />
-                        <span className="text-muted-foreground">
-                          to {format(flight.returnDate, "MMM d, yyyy")}
-                        </span>
-                      </>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {flight.origin} → {flight.destination}
-                  </TableCell>
-                  <TableCell>
-                    {flight.airlineName}
-                    {flight.flightNumber && (
-                      <span className="block text-xs text-muted-foreground">
-                        {flight.flightNumber}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{flight.type}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusBadgeColor(flight.status)}>
-                      {flight.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(flight)}
-                    >
-                      View
-                    </Button>
-                    {onSelect && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSelect(flight)}
-                        className="ml-2"
-                      >
-                        Select
-                      </Button>
-                    )}
+            </TableHeader>
+            <TableBody>
+              {filteredFlights.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No flights found
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                filteredFlights.map((flight) => {
+                  const departureDate = parseDate(flight.departure_date || flight.departureDate);
+                  const returnDate = parseDate(flight.return_date || flight.returnDate);
+                  
+                  return (
+                    <TableRow key={flight.id}>
+                      <TableCell>
+                        <Link 
+                          to={`/employee/${flight.employee_id || flight.employeeId}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {flight.employee_name || flight.employeeName}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {departureDate && format(departureDate, "MMM d, yyyy")}
+                        {returnDate && (
+                          <>
+                            <br />
+                            <span className="text-muted-foreground">
+                              to {format(returnDate, "MMM d, yyyy")}
+                            </span>
+                          </>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {flight.origin} → {flight.destination}
+                      </TableCell>
+                      <TableCell>
+                        {flight.airline_name || flight.airlineName}
+                        {(flight.flight_number || flight.flightNumber) && (
+                          <span className="block text-xs text-muted-foreground">
+                            {flight.flight_number || flight.flightNumber}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{flight.type || flight.flight_type}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusBadgeColor(flight.status)}>
+                          {flight.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(flight)}
+                        >
+                          View
+                        </Button>
+                        {onSelect && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSelect(flight)}
+                            className="ml-2"
+                          >
+                            Select
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px]">
           <FlightForm
             flight={selectedFlight || undefined}
+            onSubmit={(flightData) => {
+              fetchFlights(); // Refresh the list after submit
+              setIsFormOpen(false);
+            }}
             onClose={() => setIsFormOpen(false)}
           />
         </DialogContent>
@@ -216,9 +304,9 @@ const FlightList = ({ onSelect }: FlightListProps) => {
               flight={selectedFlight}
               onEdit={() => {
                 setIsDetailOpen(false);
-                setSelectedFlight(selectedFlight);
                 setIsFormOpen(true);
               }}
+              onDelete={() => handleDeleteFlight(selectedFlight.id)}
               onClose={() => setIsDetailOpen(false)}
             />
           )}
