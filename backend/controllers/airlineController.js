@@ -35,18 +35,42 @@ const airlineController = {
       const airlineData = req.body;
       
       // Basic validation
-      if (!airlineData.id || !airlineData.name || !airlineData.code) {
-        return res.status(400).json({ message: 'Airline ID, name, and code are required' });
+      if (!airlineData.name || !airlineData.code) {
+        return res.status(400).json({ message: 'Airline name and code are required' });
       }
       
-      const newAirline = await Airline.create(airlineData);
-      res.status(201).json({ 
-        message: 'Airline created successfully', 
-        airline: newAirline 
-      });
+      // Ensure we have an ID
+      if (!airlineData.id) {
+        return res.status(400).json({ message: 'Airline ID is required' });
+      }
+      
+      // Attempt to create the airline
+      try {
+        const newAirline = await Airline.create(airlineData);
+        return res.status(201).json({ 
+          message: 'Airline created successfully', 
+          airline: newAirline 
+        });
+      } catch (dbError) {
+        console.error('Database error creating airline:', dbError);
+        
+        // Check for duplicate entry error (MySQL error code 1062)
+        if (dbError.code === 'ER_DUP_ENTRY') {
+          return res.status(409).json({ 
+            message: 'An airline with this ID or code already exists', 
+            error: dbError.message 
+          });
+        }
+        
+        throw dbError; // Re-throw for the outer catch block
+      }
     } catch (error) {
       console.error('Error creating airline:', error);
-      res.status(500).json({ message: 'Failed to create airline', error: error.message });
+      res.status(500).json({ 
+        message: 'Failed to create airline', 
+        error: error.message,
+        details: error.sqlMessage || 'Unknown database error'
+      });
     }
   },
 

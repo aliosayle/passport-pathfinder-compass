@@ -1,35 +1,167 @@
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { getEmployeeById, getEmployeePassport, getEmployeeFlights, getEmployeeTickets } from "@/lib/data";
-import { User, Ticket as TicketIcon, Plane, Calendar, Banknote } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { User, Ticket as TicketIcon, Plane, Calendar, Banknote, Loader2, FileUp } from "lucide-react";
 import TransferForm from "@/components/transfer/TransferForm";
 import TransferHistory from "@/components/transfer/TransferHistory";
+import FileList from "@/components/upload/FileList";
+import EmployeeUploadForm from "@/components/upload/EmployeeUploadForm";
+
+// Import services
+import { employeeService, Employee } from "@/services/employeeService";
+import { passportService, Passport } from "@/services/passportService";
+import { flightService, Flight } from "@/services/flightService";
+import { ticketService, Ticket } from "@/services/ticketService";
+import { useToast } from "@/hooks/use-toast";
 
 const EmployeePage = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
-  const employee = getEmployeeById(id || "");
-  const passport = getEmployeePassport(id || "");
-  const flights = getEmployeeFlights(id || "");
-  const tickets = getEmployeeTickets(id || "");
+  // State for data
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [passport, setPassport] = useState<Passport | null>(null);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState({
+    employee: true,
+    passport: true,
+    flights: true,
+    tickets: true
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [fileRefreshTrigger, setFileRefreshTrigger] = useState<number>(0);
   
-  if (!employee) {
+  // Fetch employee data
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(prev => ({ ...prev, employee: true }));
+        const employeeData = await employeeService.getById(id);
+        setEmployee(employeeData);
+      } catch (error) {
+        console.error("Error fetching employee:", error);
+        setError("Failed to load employee data");
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load employee data. Please try again."
+        });
+      } finally {
+        setLoading(prev => ({ ...prev, employee: false }));
+      }
+    };
+    
+    fetchEmployeeData();
+  }, [id, toast]);
+  
+  // Fetch passport, flights, and tickets when employee is loaded
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchPassport = async () => {
+      try {
+        setLoading(prev => ({ ...prev, passport: true }));
+        // Check if the employee has a passport ID
+        if (employee && employee.passport_id) {
+          const passportData = await passportService.getById(employee.passport_id);
+          setPassport(passportData);
+        } else {
+          // Try to fetch passport by employee ID if passport_id is not available
+          const allPassports = await passportService.getAll();
+          const employeePassport = allPassports.find((p: Passport) => p.employee_id === id);
+          if (employeePassport) setPassport(employeePassport);
+          else setPassport(null);
+        }
+      } catch (error) {
+        console.error("Error fetching passport:", error);
+        // Don't show error toast for passport as it's optional
+      } finally {
+        setLoading(prev => ({ ...prev, passport: false }));
+      }
+    };
+    
+    const fetchFlights = async () => {
+      try {
+        setLoading(prev => ({ ...prev, flights: true }));
+        const flightData = await flightService.getFlightsByEmployeeId(id);
+        setFlights(flightData || []);
+      } catch (error) {
+        console.error("Error fetching flights:", error);
+        // Don't show error toast for flights as it's optional
+      } finally {
+        setLoading(prev => ({ ...prev, flights: false }));
+      }
+    };
+    
+    const fetchTickets = async () => {
+      try {
+        setLoading(prev => ({ ...prev, tickets: true }));
+        // Get all tickets and filter by employee ID (assuming the API doesn't have a direct endpoint)
+        const allTickets = await ticketService.getAll();
+        const employeeTickets = allTickets.filter((ticket: Ticket) => ticket.employee_id === id);
+        setTickets(employeeTickets);
+      } catch (error) {
+        console.error("Error fetching tickets:", error);
+        // Don't show error toast for tickets as it's optional
+      } finally {
+        setLoading(prev => ({ ...prev, tickets: false }));
+      }
+    };
+    
+    fetchPassport();
+    fetchFlights();
+    fetchTickets();
+  }, [id, employee]);
+  
+  const handleFileUploaded = () => {
+    // Trigger file list refresh when new file is uploaded
+    setFileRefreshTrigger(prev => prev + 1);
+  };
+  
+  if (loading.employee) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading employee data...</p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (error || !employee) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
           <h2 className="text-2xl font-bold">Employee Not Found</h2>
-          <p className="text-muted-foreground">The employee you're looking for doesn't exist.</p>
+          <p className="text-muted-foreground">The employee you're looking for doesn't exist or there was an error loading the data.</p>
           <Button onClick={() => navigate(-1)}>Go Back</Button>
         </div>
       </Layout>
     );
   }
+
+  // Format date safely
+  const formatDate = (dateValue: string | Date | null | undefined): string => {
+    if (!dateValue) return "—";
+    
+    try {
+      const date = typeof dateValue === 'string' ? parseISO(dateValue) : dateValue;
+      return format(date, "MMMM d, yyyy");
+    } catch (error) {
+      console.error("Invalid date format:", dateValue, error);
+      return "Invalid date";
+    }
+  };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -111,10 +243,10 @@ const EmployeePage = () => {
                 </div>
               )}
               
-              {employee.joinDate && (
+              {employee.join_date && (
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Join Date</p>
-                  <p>{format(employee.joinDate, "MMMM d, yyyy")}</p>
+                  <p>{formatDate(employee.join_date)}</p>
                 </div>
               )}
               
@@ -130,22 +262,28 @@ const EmployeePage = () => {
           <Card className="col-span-1 md:col-span-2">
             <Tabs defaultValue="passport" className="w-full">
               <CardHeader className="pb-0">
-                <TabsList className="grid grid-cols-5">
+                <TabsList className="grid grid-cols-6">
                   <TabsTrigger value="passport">Passport</TabsTrigger>
                   <TabsTrigger value="flights">Flights</TabsTrigger>
                   <TabsTrigger value="tickets">Tickets</TabsTrigger>
+                  <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="transfer">Send Money</TabsTrigger>
                   <TabsTrigger value="transferHistory">Transfer History</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <CardContent className="pt-6">
                 <TabsContent value="passport" className="space-y-4">
-                  {passport ? (
+                  {loading.passport ? (
+                    <div className="flex flex-col items-center justify-center h-48 space-y-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Loading passport information...</p>
+                    </div>
+                  ) : passport ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Passport Number</p>
-                          <p className="font-medium">{passport.passportNumber}</p>
+                          <p className="font-medium">{passport.passport_number}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Nationality</p>
@@ -156,15 +294,15 @@ const EmployeePage = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Issue Date</p>
-                          <p>{format(passport.issueDate, "MMMM d, yyyy")}</p>
+                          <p>{formatDate(passport.issue_date)}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Expiry Date</p>
-                          <p>{format(passport.expiryDate, "MMMM d, yyyy")}</p>
-                          {passport.expiryDate < new Date() && (
+                          <p>{formatDate(passport.expiry_date)}</p>
+                          {new Date(passport.expiry_date) < new Date() && (
                             <Badge className="bg-red-100 text-red-800 mt-1">Expired</Badge>
                           )}
-                          {passport.expiryDate > new Date() && passport.expiryDate < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) && (
+                          {new Date(passport.expiry_date) > new Date() && new Date(passport.expiry_date) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) && (
                             <Badge className="bg-yellow-100 text-yellow-800 mt-1">Expiring Soon</Badge>
                           )}
                         </div>
@@ -175,10 +313,10 @@ const EmployeePage = () => {
                           <p className="text-sm text-muted-foreground">Status</p>
                           <Badge>{passport.status}</Badge>
                         </div>
-                        {passport.ticketReference && (
+                        {passport.ticket_reference && (
                           <div className="space-y-1">
                             <p className="text-sm text-muted-foreground">Ticket Reference</p>
-                            <p>{passport.ticketReference}</p>
+                            <p>{passport.ticket_reference}</p>
                           </div>
                         )}
                       </div>
@@ -190,19 +328,29 @@ const EmployeePage = () => {
                         </div>
                       )}
                       
-                      <div className="text-sm text-muted-foreground">
-                        Last updated: {format(passport.lastUpdated, "MMMM d, yyyy")}
-                      </div>
+                      {passport.last_updated && (
+                        <div className="text-sm text-muted-foreground">
+                          Last updated: {formatDate(passport.last_updated)}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48 space-y-2">
                       <p className="text-muted-foreground">No passport information available</p>
+                      <Button variant="outline" size="sm">
+                        Add Passport
+                      </Button>
                     </div>
                   )}
                 </TabsContent>
                 
                 <TabsContent value="flights" className="space-y-4">
-                  {flights.length > 0 ? (
+                  {loading.flights ? (
+                    <div className="flex flex-col items-center justify-center h-48 space-y-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Loading flights information...</p>
+                    </div>
+                  ) : flights.length > 0 ? (
                     <div className="space-y-4">
                       <div className="rounded-md border">
                         <table className="w-full text-sm">
@@ -219,10 +367,10 @@ const EmployeePage = () => {
                             {flights.map((flight) => (
                               <tr key={flight.id} className="border-b hover:bg-muted/50">
                                 <td className="p-4 align-middle">
-                                  {format(flight.departureDate, "MMM d, yyyy")}
-                                  {flight.returnDate && (
+                                  {formatDate(flight.departure_date)}
+                                  {flight.return_date && (
                                     <span className="block text-xs text-muted-foreground">
-                                      to {format(flight.returnDate, "MMM d, yyyy")}
+                                      to {formatDate(flight.return_date)}
                                     </span>
                                   )}
                                 </td>
@@ -230,10 +378,10 @@ const EmployeePage = () => {
                                   {flight.origin} → {flight.destination}
                                 </td>
                                 <td className="p-4 align-middle">
-                                  {flight.airlineName}
-                                  {flight.flightNumber && (
+                                  {flight.airline_name}
+                                  {flight.flight_number && (
                                     <span className="block text-xs text-muted-foreground">
-                                      {flight.flightNumber}
+                                      {flight.flight_number}
                                     </span>
                                   )}
                                 </td>
@@ -264,7 +412,12 @@ const EmployeePage = () => {
                 </TabsContent>
                 
                 <TabsContent value="tickets" className="space-y-4">
-                  {tickets.length > 0 ? (
+                  {loading.tickets ? (
+                    <div className="flex flex-col items-center justify-center h-48 space-y-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Loading tickets information...</p>
+                    </div>
+                  ) : tickets.length > 0 ? (
                     <div className="space-y-4">
                       <div className="rounded-md border">
                         <table className="w-full text-sm">
@@ -282,21 +435,26 @@ const EmployeePage = () => {
                               <tr key={ticket.id} className="border-b hover:bg-muted/50">
                                 <td className="p-4 align-middle font-medium">{ticket.reference}</td>
                                 <td className="p-4 align-middle">
-                                  {format(ticket.departureDate, "MMM d, yyyy")}
-                                  {ticket.returnDate && (
+                                  {formatDate(ticket.departure_date)}
+                                  {ticket.return_date && (
                                     <span className="block text-xs text-muted-foreground">
-                                      to {format(ticket.returnDate, "MMM d, yyyy")}
+                                      to {formatDate(ticket.return_date)}
                                     </span>
                                   )}
                                 </td>
                                 <td className="p-4 align-middle">
                                   {ticket.origin} → {ticket.destination}
+                                  {ticket.has_return && (
+                                    <span className="block text-xs">
+                                      {ticket.return_completed ? "Return completed" : "Return journey planned"}
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="p-4 align-middle">
-                                  {ticket.airlineName}
-                                  {ticket.flightNumber && (
+                                  {ticket.airline_name}
+                                  {ticket.flight_number && (
                                     <span className="block text-xs text-muted-foreground">
-                                      {ticket.flightNumber}
+                                      {ticket.flight_number}
                                     </span>
                                   )}
                                 </td>
@@ -311,18 +469,54 @@ const EmployeePage = () => {
                         </table>
                       </div>
                       
-                      <div className="flex justify-end">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to="/tickets">View All Tickets</Link>
+                      <div className="flex justify-between">
+                        <Button variant="outline" size="sm" onClick={() => {
+                          // Navigate to tickets page with pre-selected filter for this employee
+                          navigate(`/tickets?employee=${id}`);
+                        }}>
+                          View All Tickets
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          // Navigate to add new ticket page with this employee pre-selected
+                          navigate(`/tickets/new?employee=${id}`);
+                        }}>
+                          Add New Ticket
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-48 space-y-2">
+                    <div className="flex flex-col items-center justify-center h-48 space-y-4">
                       <TicketIcon className="h-10 w-10 text-muted-foreground/50" />
                       <p className="text-muted-foreground">No ticket information available</p>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        // Navigate to add new ticket page with this employee pre-selected
+                        navigate(`/tickets/new?employee=${id}`);
+                      }}>
+                        Add First Ticket
+                      </Button>
                     </div>
                   )}
+                </TabsContent>
+                
+                <TabsContent value="files" className="space-y-4">
+                  <div className="flex items-center mb-4 space-x-2">
+                    <FileUp className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Employee Files</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="col-span-1">
+                      <EmployeeUploadForm 
+                        employeeId={id || ''} 
+                        employeeName={employee?.name || 'Employee'} 
+                        onUploadSuccess={handleFileUploaded}
+                      />
+                    </div>
+                    
+                    <div className="col-span-1 md:col-span-2">
+                      <FileList employeeId={id} refreshTrigger={fileRefreshTrigger} compact={true} />
+                    </div>
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="transfer" className="space-y-4">

@@ -27,6 +27,12 @@ export const passportService = {
     return response.data;
   },
   
+  // Get passports by user ID
+  getByUserId: async (userId: string) => {
+    const response = await apiClient.get(`/passports/user/${userId}`);
+    return response.data;
+  },
+  
   // Get passports expiring in X days
   getExpiringPassports: async (days: number) => {
     const response = await apiClient.get(`/passports/expiring/${days}`);

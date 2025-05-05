@@ -68,9 +68,10 @@ CREATE TABLE visa_types (
   country_name VARCHAR(100) NOT NULL
 );
 
--- Create flights table
+-- Create flights table with enhanced fields
 CREATE TABLE flights (
   id VARCHAR(20) PRIMARY KEY,
+  ticket_id VARCHAR(20) NOT NULL,
   employee_name VARCHAR(100) NOT NULL,
   employee_id VARCHAR(10) NOT NULL,
   departure_date DATE NOT NULL,
@@ -81,17 +82,20 @@ CREATE TABLE flights (
   airline_name VARCHAR(100) NOT NULL,
   ticket_reference VARCHAR(20) NOT NULL,
   flight_number VARCHAR(20),
+  is_return BOOLEAN NOT NULL DEFAULT FALSE,
   status ENUM('Pending', 'Completed', 'Cancelled', 'Delayed') NOT NULL,
-  type ENUM('Business', 'Vacation', 'Sick Leave', 'Family Emergency', 'Training') NOT NULL,
+  type ENUM('Business', 'Vacation', 'Sick Leave', 'Family Emergency', 'Training', 'Other') NOT NULL,
   notes TEXT,
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (employee_id) REFERENCES employees(id),
   FOREIGN KEY (airline_id) REFERENCES airlines(id),
+  FOREIGN KEY (ticket_id) REFERENCES tickets(id),
   INDEX idx_departure (departure_date),
-  INDEX idx_status (status)
+  INDEX idx_status (status),
+  INDEX idx_ticket (ticket_id)
 );
 
--- Create tickets table
+-- Create tickets table with enhanced fields for new workflow
 CREATE TABLE tickets (
   id VARCHAR(20) PRIMARY KEY,
   reference VARCHAR(20) NOT NULL UNIQUE,
@@ -107,12 +111,21 @@ CREATE TABLE tickets (
   origin VARCHAR(100) NOT NULL,
   cost DECIMAL(10,2),
   currency VARCHAR(3),
-  status ENUM('Active', 'Used', 'Cancelled', 'Expired') NOT NULL,
+  status ENUM('Pending', 'Active', 'Used', 'Completed', 'Cancelled', 'Delayed', 'Rescheduled', 'Expired') NOT NULL DEFAULT 'Pending',
+  type VARCHAR(50) NOT NULL DEFAULT 'Business',
+  flight_status VARCHAR(50),
+  departure_flight_id VARCHAR(20),
+  return_flight_id VARCHAR(20),
+  has_return BOOLEAN NOT NULL DEFAULT FALSE,
+  departure_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  return_completed BOOLEAN DEFAULT FALSE,
   notes TEXT,
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (employee_id) REFERENCES employees(id),
   FOREIGN KEY (airline_id) REFERENCES airlines(id),
-  INDEX idx_reference (reference)
+  INDEX idx_reference (reference),
+  INDEX idx_status (status),
+  INDEX idx_departure_date (departure_date)
 );
 
 -- Create money_transfers table

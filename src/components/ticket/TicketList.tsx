@@ -8,7 +8,7 @@ import { Ticket as TicketIcon, Filter, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import TicketForm from "./TicketForm";
 import TicketDetail from "./TicketDetail";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
@@ -248,6 +248,9 @@ const TicketList = ({ onSelect }: TicketListProps) => {
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px]">
+          <DialogTitle>
+            {selectedTicket ? "Edit Ticket" : "Add New Ticket"}
+          </DialogTitle>
           <TicketForm
             ticket={selectedTicket || undefined}
             onClose={() => setIsFormOpen(false)}
@@ -261,6 +264,7 @@ const TicketList = ({ onSelect }: TicketListProps) => {
 
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="sm:max-w-[700px]">
+          <DialogTitle>Ticket Details</DialogTitle>
           {selectedTicket && (
             <TicketDetail
               ticket={selectedTicket}

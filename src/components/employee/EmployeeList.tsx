@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Search, FileText, Loader2, Edit, Trash2 } from "lucide-react";
+import { User, Search, FileText, Loader2, Edit, Trash2, FileUp } from "lucide-react";
 import { format } from "date-fns";
 import { employeeService } from "@/services/employeeService";
 import { passportService } from "@/services/passportService";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import EmployeeForm from "./EmployeeForm";
+import EmployeeUploadForm from "../upload/EmployeeUploadForm";
 import type { Employee, Passport } from "@/types";
 
 interface EmployeeListProps {
@@ -40,6 +41,7 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -156,6 +158,19 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
       });
     }
   };
+
+  const handleUploadFile = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsUploadDialogOpen(true);
+  };
+
+  const handleUploadSuccess = () => {
+    toast({
+      title: "File Uploaded",
+      description: `File has been uploaded successfully for ${selectedEmployee?.name}.`,
+    });
+    setIsUploadDialogOpen(false);
+  };
   
   return (
     <div className="space-y-4">
@@ -242,6 +257,13 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => handleUploadFile(employee)}
+                          >
+                            <FileUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleEditEmployee(employee)}
                           >
                             <Edit className="h-4 w-4" />
@@ -306,6 +328,30 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload File Dialog */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent>
+          <DialogTitle>Upload File for {selectedEmployee?.name}</DialogTitle>
+          <DialogDescription>
+            Upload documents, images, or other files for this employee.
+          </DialogDescription>
+          
+          {selectedEmployee && (
+            <EmployeeUploadForm 
+              employeeId={selectedEmployee.id} 
+              employeeName={selectedEmployee.name} 
+              onUploadSuccess={handleUploadSuccess}
+            />
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,11 +1,12 @@
-
 import { useState } from "react";
 import { Airline } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { addAirline, updateAirline } from "@/lib/data";
+import { useQueryClient } from "@tanstack/react-query";
+import { airlineService } from "@/services/airlineService";
+import { Loader2 } from "lucide-react";
 
 interface AirlineFormProps {
   airline?: Airline;
@@ -17,7 +18,9 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
   const [code, setCode] = useState(airline?.code || "");
   const [contactInfo, setContactInfo] = useState(airline?.contactInfo || "");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -36,7 +39,7 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) {
@@ -44,46 +47,47 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
     }
 
     try {
+      setIsSubmitting(true);
+      
+      const payload = {
+        name,
+        code,
+        contact_info: contactInfo || undefined
+      };
+      
       if (airline) {
-        // Update existing
-        updateAirline({
-          ...airline,
-          name,
-          code,
-          contactInfo: contactInfo || undefined,
-        });
+        // Update existing airline
+        await airlineService.update(airline.id, payload);
         toast({
           title: "Airline Updated",
           description: `${name} has been updated successfully.`
         });
       } else {
-        // Create new
-        addAirline({
-          name,
-          code,
-          contactInfo: contactInfo || undefined,
-        });
+        // Create new airline
+        await airlineService.create(payload);
         toast({
           title: "Airline Added",
           description: `${name} has been added successfully.`
         });
       }
+      
+      // Refresh airlines data
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error processing airline data:", error);
       toast({
         title: "Error",
-        description: "There was an error processing the airline data.",
+        description: error.response?.data?.message || "There was an error processing the airline data.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">
-        {airline ? "Edit Airline" : "Add New Airline"}
-      </h3>
-      
+    <div className="space-y-4">      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -94,6 +98,7 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
               onChange={(e) => setName(e.target.value)}
               placeholder="Emirates"
               className={errors.name ? "border-destructive" : ""}
+              disabled={isSubmitting}
             />
             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
@@ -107,6 +112,7 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
               placeholder="EK"
               maxLength={3}
               className={errors.code ? "border-destructive" : ""}
+              disabled={isSubmitting}
             />
             {errors.code && <p className="text-sm text-destructive">{errors.code}</p>}
           </div>
@@ -119,15 +125,31 @@ const AirlineForm = ({ airline, onClose }: AirlineFormProps) => {
             value={contactInfo}
             onChange={(e) => setContactInfo(e.target.value)}
             placeholder="customer.service@airline.com"
+            disabled={isSubmitting}
           />
         </div>
         
         <div className="flex justify-end space-x-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button type="submit">
-            {airline ? "Update Airline" : "Add Airline"}
+          <Button 
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {airline ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              airline ? "Update Airline" : "Add Airline"
+            )}
           </Button>
         </div>
       </form>

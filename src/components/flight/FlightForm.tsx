@@ -282,8 +282,7 @@ const FlightForm = ({ flight, onSubmit, onClose }: FlightFormProps) => {
     try {
       setIsSubmitting(true);
       
-      const flightData: Flight = {
-        id: flight?.id || `FLIGHT${Date.now().toString().slice(-6)}`,
+      const flightData = {
         employee_name: employeeName,
         employee_id: employeeId,
         departure_date: departureDate!.toISOString(),
@@ -295,21 +294,22 @@ const FlightForm = ({ flight, onSubmit, onClose }: FlightFormProps) => {
         ticket_reference: ticketReference,
         flight_number: flightNumber || undefined,
         status: status as 'Pending' | 'Completed' | 'Cancelled' | 'Delayed',
-        type: finalType,
+        type: finalType as any,
         notes: notes || undefined,
         last_updated: new Date().toISOString()
       };
       
+      let result;
       if (flight) {
         // Update existing flight
-        await flightService.update(flight.id, flightData);
+        result = await flightService.update(flight.id, flightData);
         toast({
           title: "Flight Updated",
           description: `Flight details for ${employeeName} have been updated successfully.`
         });
       } else {
         // Create new flight
-        await flightService.create(flightData);
+        result = await flightService.create(flightData);
         toast({
           title: "Flight Added",
           description: `New flight for ${employeeName} has been added successfully.`
@@ -317,7 +317,7 @@ const FlightForm = ({ flight, onSubmit, onClose }: FlightFormProps) => {
       }
       
       // Call the onSubmit callback provided by parent component
-      onSubmit(flightData);
+      onSubmit(result);
       
     } catch (error) {
       console.error("Error saving flight:", error);

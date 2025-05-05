@@ -1,10 +1,10 @@
 // Flight Controller
-const db = require('../config/db');
+const { pool } = require('../config/db');
 
 // Get all flights
 exports.getAllFlights = async (req, res) => {
   try {
-    const [flights] = await db.query(`
+    const [flights] = await pool.query(`
       SELECT f.*, e.name as employee_name, a.name as airline_name
       FROM flights f
       LEFT JOIN employees e ON f.employee_id = e.id
@@ -22,7 +22,7 @@ exports.getAllFlights = async (req, res) => {
 // Get flight by ID
 exports.getFlightById = async (req, res) => {
   try {
-    const [flights] = await db.query(`
+    const [flights] = await pool.query(`
       SELECT f.*, e.name as employee_name, a.name as airline_name
       FROM flights f
       LEFT JOIN employees e ON f.employee_id = e.id
@@ -44,7 +44,7 @@ exports.getFlightById = async (req, res) => {
 // Get flights by employee ID
 exports.getFlightsByEmployeeId = async (req, res) => {
   try {
-    const [flights] = await db.query(`
+    const [flights] = await pool.query(`
       SELECT f.*, e.name as employee_name, a.name as airline_name
       FROM flights f
       LEFT JOIN employees e ON f.employee_id = e.id
@@ -78,35 +78,80 @@ exports.createFlight = async (req, res) => {
       notes
     } = req.body;
 
+    // Validate required fields
+    if (!id || !employee_id || !departure_date || !destination || !origin || !airline_id || !ticket_reference || !status || !type) {
+      return res.status(400).json({
+        message: 'Missing required flight fields',
+        required: ['id', 'employee_id', 'departure_date', 'destination', 'origin', 'airline_id', 'ticket_reference', 'status', 'type'],
+        received: { id, employee_id, departure_date, destination, origin, airline_id, ticket_reference, status, type }
+      });
+    }
+
+    // Format dates for MySQL
+    const formattedDepartureDate = new Date(departure_date).toISOString().slice(0, 19).replace('T', ' ');
+    const formattedReturnDate = return_date ? new Date(return_date).toISOString().slice(0, 19).replace('T', ' ') : null;
     const last_updated = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    const [result] = await db.query(`
-      INSERT INTO flights (
-        id, employee_id, departure_date, return_date, destination,
-        origin, airline_id, ticket_reference, flight_number, status, type, notes, last_updated
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      employee_id,
-      departure_date,
-      return_date || null,
-      destination,
-      origin,
-      airline_id,
-      ticket_reference,
-      flight_number || null,
-      status,
-      type,
-      notes || null,
-      last_updated
-    ]);
+    try {
+      const [result] = await pool.query(`
+        INSERT INTO flights (
+          id, employee_id, departure_date, return_date, destination,
+          origin, airline_id, ticket_reference, flight_number, status, type, notes, last_updated
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        employee_id,
+        formattedDepartureDate,
+        formattedReturnDate,
+        destination,
+        origin,
+        airline_id,
+        ticket_reference,
+        flight_number || null,
+        status,
+        type,
+        notes || null,
+        last_updated
+      ]);
 
-    const [newFlight] = await db.query('SELECT * FROM flights WHERE id = ?', [id]);
-    
-    res.status(201).json(newFlight[0]);
+      const [newFlight] = await pool.query('SELECT * FROM flights WHERE id = ?', [id]);
+      
+      if (newFlight.length === 0) {
+        return res.status(500).json({ 
+          message: 'Flight was created but could not be retrieved',
+          flightId: id
+        });
+      }
+      
+      res.status(201).json(newFlight[0]);
+    } catch (dbError) {
+      console.error('Database error creating flight:', dbError);
+      
+      // Check for duplicate entry
+      if (dbError.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({
+          message: 'A flight with this ID already exists',
+          error: dbError.message
+        });
+      }
+      
+      // Check for foreign key constraints
+      if (dbError.code === 'ER_NO_REFERENCED_ROW_2') {
+        return res.status(400).json({
+          message: 'Referenced entity does not exist (employee or airline)',
+          error: dbError.message
+        });
+      }
+      
+      throw dbError; // Re-throw for the outer catch block
+    }
   } catch (error) {
     console.error('Error creating flight:', error);
-    res.status(500).json({ message: 'Error creating flight', error: error.message });
+    res.status(500).json({
+      message: 'Error creating flight',
+      error: error.message,
+      details: error.sqlMessage || 'Unknown database error'
+    });
   }
 };
 
@@ -129,7 +174,7 @@ exports.updateFlight = async (req, res) => {
 
     const last_updated = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    await db.query(`
+    await pool.query(`
       UPDATE flights SET
         employee_id = ?,
         departure_date = ?,
@@ -160,7 +205,7 @@ exports.updateFlight = async (req, res) => {
       req.params.id
     ]);
 
-    const [updatedFlight] = await db.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
+    const [updatedFlight] = await pool.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
     
     if (updatedFlight.length === 0) {
       return res.status(404).json({ message: 'Flight not found' });
@@ -176,13 +221,13 @@ exports.updateFlight = async (req, res) => {
 // Delete flight
 exports.deleteFlight = async (req, res) => {
   try {
-    const [flight] = await db.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
+    const [flight] = await pool.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
     
     if (flight.length === 0) {
       return res.status(404).json({ message: 'Flight not found' });
     }
     
-    await db.query('DELETE FROM flights WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM flights WHERE id = ?', [req.params.id]);
     
     res.status(200).json({ message: 'Flight deleted successfully', id: req.params.id });
   } catch (error) {

@@ -1,13 +1,15 @@
-
 import { useState } from "react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Airline } from "@/types";
-import { airlines } from "@/lib/data";
-import { Plane } from "lucide-react";
+import { Plane, Trash2, Loader2 } from "lucide-react";
 import AirlineForm from "./AirlineForm";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { airlineService } from "@/services/airlineService";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface AirlineListProps {
   onSelect?: (airline: Airline) => void;
@@ -18,6 +20,17 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [airlineToDelete, setAirlineToDelete] = useState<Airline | null>(null);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Fetch airlines data
+  const { data: airlines = [], isLoading, isError } = useQuery({
+    queryKey: ['airlines'],
+    queryFn: () => airlineService.getAll()
+  });
 
   const filteredAirlines = airlines.filter(
     airline => 
@@ -34,6 +47,37 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
   const handleAddNew = () => {
     setSelectedAirline(null);
     setIsFormOpen(true);
+  };
+  
+  const handleDelete = async (airline: Airline) => {
+    setAirlineToDelete(airline);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!airlineToDelete) return;
+    
+    try {
+      await airlineService.delete(airlineToDelete.id);
+      
+      toast({
+        title: "Airline Deleted",
+        description: `${airlineToDelete.name} has been deleted successfully.`
+      });
+      
+      // Refresh airlines data
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "There was an error deleting the airline. It may be in use by tickets or flights.",
+        variant: "destructive"
+      });
+    }
+    
+    setIsDeleteDialogOpen(false);
+    setAirlineToDelete(null);
   };
 
   return (
@@ -66,7 +110,22 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAirlines.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <div className="flex justify-center items-center">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    Loading airlines...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-destructive">
+                  Error loading airlines. Please try again.
+                </TableCell>
+              </TableRow>
+            ) : filteredAirlines.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   No airlines found
@@ -78,7 +137,7 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
                   <TableCell className="font-medium">{airline.name}</TableCell>
                   <TableCell>{airline.code}</TableCell>
                   <TableCell>{airline.contactInfo || "N/A"}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -86,12 +145,19 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
                     >
                       Edit
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(airline)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                     {onSelect && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onSelect(airline)}
-                        className="ml-2"
                       >
                         Select
                       </Button>
@@ -106,12 +172,40 @@ const AirlineList = ({ onSelect, onEdit }: AirlineListProps) => {
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[550px]">
+          <DialogTitle>
+            {selectedAirline ? "Edit Airline" : "Add New Airline"}
+          </DialogTitle>
+          <DialogDescription>
+            {selectedAirline 
+              ? "Edit the airline details below. Click update when you're done."
+              : "Enter the details of the airline you want to add."}
+          </DialogDescription>
           <AirlineForm
             airline={selectedAirline || undefined}
             onClose={() => setIsFormOpen(false)}
           />
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Airline</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {airlineToDelete?.name}? This action cannot be undone.
+              <br />
+              <br />
+              <strong>Note:</strong> If this airline is associated with any tickets or flights, the deletion will fail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -33,6 +33,12 @@ export const transferService = {
     const response = await apiClient.get(`/transfers/employee/${employeeId}`);
     return response.data;
   },
+  
+  // Get transfers by user ID
+  getByUserId: async (userId: string) => {
+    const response = await apiClient.get(`/transfers/user/${userId}`);
+    return response.data;
+  },
 
   // Create new transfer
   create: async (transferData: MoneyTransfer) => {
@@ -42,13 +48,13 @@ export const transferService = {
 
   // Update transfer status
   updateStatus: async (id: string, status: 'Pending' | 'Completed' | 'Failed') => {
-    const response = await apiClient.put(`/transfers/${id}`, { status });
+    const response = await apiClient.patch(`/transfers/${id}/status`, { status });
     return response.data;
   },
   
   // Mark transfer as completed
   completeTransfer: async (id: string) => {
-    const response = await apiClient.post(`/transfers/${id}/complete`);
+    const response = await apiClient.patch(`/transfers/${id}/complete`);
     return response.data;
   }
 };

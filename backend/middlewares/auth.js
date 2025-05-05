@@ -5,8 +5,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'passport_pathfinder_secure_jwt_sec
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
+  // Check for token in Authorization header
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  // Check for token in query parameters (for file downloads/views)
+  const queryToken = req.query.token;
+  
+  // Use token from header or query parameter
+  const token = (authHeader && authHeader.split(' ')[1]) || queryToken;
   
   if (token == null) return res.status(401).json({ message: 'Authentication token required' });
 
