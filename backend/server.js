@@ -15,23 +15,39 @@ const visaTypeRoutes = require('./routes/visaTypes');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/uploads');
-const reportRoutes = require('./routes/reports'); // Add reports routes
 
 // Initialize express app
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// Enhanced CORS configuration for file downloads
+const corsOptions = {
+  origin: '*', // Allow all origins for download compatibility
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range', 'Access-Control-Allow-Origin', 'Origin', 'Accept', 'Content-Disposition'],
+  exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges']
+};
+
+// Apply CORS middleware with enhanced options
+app.use(cors(corsOptions));
+
+// Additional CORS handling for preflight requests
+app.options('*', cors(corsOptions));
+
+// Middleware for parsing JSON and URL-encoded data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test database connection
-testConnection();
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+// Add test endpoint
+app.get('/', (req, res) => {
+  res.send('Passport Pathfinder API is running!');
+});
+
+// Use routes
 app.use('/api/employees', employeeRoutes);
 app.use('/api/passports', passportRoutes);
 app.use('/api/flights', flightRoutes);
@@ -40,26 +56,12 @@ app.use('/api/transfers', transferRoutes);
 app.use('/api/nationalities', nationalityRoutes);
 app.use('/api/airlines', airlineRoutes);
 app.use('/api/visa-types', visaTypeRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/uploads', uploadRoutes);
-app.use('/api/reports', reportRoutes); // Register reports routes
 
-// Serve uploaded files statically (optional, for viewing in browser)
-app.use('/uploads', express.static('uploads'));
-
-// Default route
-app.get('/', (req, res) => {
-  res.send('Passport Management System API is running');
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send({ message: 'Something went wrong!', error: err.message });
-});
-
-// Start server
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
+  testConnection(); // Test database connection
 });
-
-module.exports = app;

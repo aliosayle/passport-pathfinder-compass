@@ -19,7 +19,6 @@ router.get('/employee/:employeeId', uploadController.getUploadsByEmployee);
 // File operations by ID
 router.get('/:id', uploadController.getUploadById);
 router.get('/:id/download', uploadController.downloadFile);
-router.get('/:id/view', uploadController.viewFile);
 router.patch('/:id/description', uploadController.updateDescription);
 router.delete('/:id', uploadController.deleteFile);
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Search, FileText, Loader2, Edit, Trash2, FileUp } from "lucide-react";
+import { User, Search, Loader2, Edit, Trash2, FileUp } from "lucide-react";
 import { format } from "date-fns";
 import { employeeService } from "@/services/employeeService";
 import { passportService } from "@/services/passportService";
@@ -50,14 +50,10 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch employees from the API
       const employeeData = await employeeService.getAll();
       setEmployees(employeeData);
-      
-      // Fetch all passports for quick lookup
       const passportData = await passportService.getAll();
       setPassports(passportData);
-      
       setLoading(false);
     } catch (err) {
       console.error("Error fetching employee data:", err);
@@ -110,7 +106,7 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
         title: "Employee Deleted",
         description: `${employeeToDelete.name} has been deleted successfully.`,
       });
-      fetchData(); // Refresh the data
+      fetchData();
     } catch (error) {
       console.error("Error deleting employee:", error);
       toast({
@@ -127,20 +123,17 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   const handleFormSubmit = async (data: Omit<Employee, 'id'>) => {
     try {
       if (selectedEmployee) {
-        // Update existing employee
         await employeeService.update(selectedEmployee.id, data);
         toast({
           title: "Employee Updated",
           description: `${data.name}'s information has been updated successfully.`,
         });
       } else {
-        // Generate an ID for new employee if needed
         const employeeId = `EMP${Math.floor(Math.random() * 9000) + 1000}`;
         const newEmployeeData = {
           ...data, 
           id: employeeId
         };
-        
         await employeeService.create(newEmployeeData);
         toast({
           title: "Employee Added",
@@ -148,7 +141,7 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
         });
       }
       setIsFormOpen(false);
-      fetchData(); // Refresh the data
+      fetchData();
     } catch (error) {
       console.error("Error saving employee:", error);
       toast({
@@ -257,13 +250,6 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleUploadFile(employee)}
-                          >
-                            <FileUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
                             onClick={() => handleEditEmployee(employee)}
                           >
                             <Edit className="h-4 w-4" />
@@ -271,8 +257,15 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-red-500 hover:bg-red-50"
+                            onClick={() => handleUploadFile(employee)}
+                          >
+                            <FileUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleDeleteEmployee(employee)}
+                            className="text-red-500 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -287,64 +280,36 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
         </div>
       )}
 
-      {/* Add/Edit Employee Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogTitle>{selectedEmployee ? "Edit Employee" : "Add New Employee"}</DialogTitle>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogTitle>
+            {selectedEmployee ? "Edit Employee" : "Add New Employee"}
+          </DialogTitle>
           <DialogDescription>
             {selectedEmployee 
-              ? "Update employee information in the system" 
-              : "Enter information for the new employee"
-            }
+              ? "Update employee information in the system."
+              : "Add a new employee to the system."}
           </DialogDescription>
-          <EmployeeForm
-            employee={selectedEmployee || undefined}
+          <EmployeeForm 
+            employee={selectedEmployee} 
             onSubmit={handleFormSubmit}
             onCancel={() => setIsFormOpen(false)}
           />
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this employee?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove {employeeToDelete?.name} and cannot be undone.
-              Any related data like passports might also be affected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteEmployee}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Upload File Dialog */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-        <DialogContent>
-          <DialogTitle>Upload File for {selectedEmployee?.name}</DialogTitle>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogTitle>Upload Documents</DialogTitle>
           <DialogDescription>
-            Upload documents, images, or other files for this employee.
+            Upload documents for {selectedEmployee?.name}.
           </DialogDescription>
-          
           {selectedEmployee && (
             <EmployeeUploadForm 
               employeeId={selectedEmployee.id} 
-              employeeName={selectedEmployee.name} 
-              onUploadSuccess={handleUploadSuccess}
+              onSuccess={handleUploadSuccess}
             />
           )}
-          
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
               Cancel
@@ -352,6 +317,24 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this employee?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {employeeToDelete?.name}'s
+              record and all associated data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEmployee} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

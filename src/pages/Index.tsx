@@ -1,7 +1,5 @@
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
-import PassportSummary from "@/components/dashboard/PassportSummary";
-import ExpiringPassports from "@/components/dashboard/ExpiringPassports";
 import PendingTickets from "@/components/dashboard/PendingTickets";
 import PassportList from "@/components/PassportList";
 import PassportForm from "@/components/PassportForm";
@@ -15,7 +13,7 @@ import { Link } from "react-router-dom";
 import { passportService } from "@/services/passportService";
 import { employeeService } from "@/services/employeeService";
 import { format } from "date-fns";
-import { TicketIcon, Plane, BookOpen } from "lucide-react";
+import { TicketIcon, BookOpen } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("tickets");
@@ -44,14 +42,14 @@ const Index = () => {
 
   const handleFormSubmit = async (data: Omit<Passport, 'id' | 'lastUpdated'>) => {
     try {
-      let employeeId = data.employeeId;
+      let employeeId = data.employee_id;
       
       try {
         await employeeService.getById(employeeId);
       } catch (err) {
         const newEmployee = {
           id: employeeId,
-          name: data.employeeName,
+          name: data.employee_name,
           nationality: data.nationality,
         };
         
@@ -60,14 +58,14 @@ const Index = () => {
       
       const formattedData = {
         id: isEditMode && selectedPassport ? selectedPassport.id : `P${Date.now()}`,
-        employee_name: data.employeeName,
+        employee_name: data.employee_name,
         employee_id: employeeId,
-        passport_number: data.passportNumber,
+        passport_number: data.passport_number,
         nationality: data.nationality,
-        issue_date: format(data.issueDate, "yyyy-MM-dd"),
-        expiry_date: format(data.expiryDate, "yyyy-MM-dd"),
+        issue_date: format(data.issue_date, "yyyy-MM-dd"),
+        expiry_date: format(data.expiry_date, "yyyy-MM-dd"),
         status: data.status,
-        ticket_reference: data.ticketReference || "",
+        ticket_reference: data.ticket_reference || "",
         notes: data.notes || ""
       };
 
@@ -76,13 +74,13 @@ const Index = () => {
         await passportService.update(id, updateData);
         toast({
           title: "Passport Updated",
-          description: `${data.employeeName}'s passport has been updated successfully.`
+          description: `${data.employee_name}'s passport has been updated successfully.`
         });
       } else {
         await passportService.create(formattedData);
         toast({
           title: "Passport Added",
-          description: `${data.employeeName}'s passport has been added successfully.`
+          description: `${data.employee_name}'s passport has been added successfully.`
         });
       }
       
@@ -129,15 +127,12 @@ const Index = () => {
           onValueChange={setActiveTab} 
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="tickets" className="flex items-center">
               <TicketIcon className="h-4 w-4 mr-2" /> Ticket Management
             </TabsTrigger>
             <TabsTrigger value="passports" className="flex items-center">
               <BookOpen className="h-4 w-4 mr-2" /> Passports
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center">
-              Summaries & Reports
             </TabsTrigger>
           </TabsList>
           
@@ -150,11 +145,6 @@ const Index = () => {
               onSelect={handleViewPassport}
               onEdit={handleEditPassport}
             />
-          </TabsContent>
-          
-          <TabsContent value="reports" className="space-y-6">
-            <PassportSummary />
-            <ExpiringPassports />
           </TabsContent>
         </Tabs>
       </div>

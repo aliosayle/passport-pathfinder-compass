@@ -237,42 +237,6 @@ exports.downloadFile = async (req, res) => {
   }
 };
 
-// View a file (inline display)
-exports.viewFile = async (req, res) => {
-  try {
-    const fileRecord = await Upload.findById(req.params.id);
-    
-    if (!fileRecord) {
-      return res.status(404).json({ message: 'File not found' });
-    }
-    
-    const filePath = path.join(__dirname, '..', fileRecord.file_path);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'File not found on server' });
-    }
-    
-    // Update last accessed time
-    await Upload.updateLastAccessed(fileRecord.id);
-    
-    // Set Content-Type based on file type, but don't set Content-Disposition
-    // This will display the file inline rather than download it
-    res.setHeader('Content-Type', fileRecord.file_type);
-    
-    // Stream file to response
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-    
-  } catch (error) {
-    console.error('Error viewing file:', error);
-    res.status(500).json({ 
-      message: 'Failed to view file',
-      error: error.message 
-    });
-  }
-};
-
 // Update file description
 exports.updateDescription = async (req, res) => {
   try {
