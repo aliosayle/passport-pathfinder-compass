@@ -15,6 +15,7 @@ const visaTypeRoutes = require('./routes/visaTypes');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/uploads');
+const reportRoutes = require('./routes/reports');
 
 // Initialize express app
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/visa-types', visaTypeRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Start the server
 app.listen(PORT, () => {

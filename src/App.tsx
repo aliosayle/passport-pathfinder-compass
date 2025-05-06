@@ -15,6 +15,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import LoginPage from "./pages/LoginPage";
 import UsersPage from "./pages/UsersPage";
 import UploadsPage from "./pages/UploadsPage";
+import ReportsPage from "./pages/ReportsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -76,6 +77,11 @@ const App = () => (
             <Route path="/uploads" element={
               <ProtectedRoute>
                 <UploadsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute>
+                <ReportsPage />
               </ProtectedRoute>
             } />
             

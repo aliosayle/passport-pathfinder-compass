@@ -1,0 +1,118 @@
+{
+  "reportPeriod": {
+    "startDate": "2025-02-01",
+    "endDate": "2025-05-06"
+  },
+  "employee": {
+    "id": "EMP4728",
+    "name": "Ali Osseili",
+    "department": "IT",
+    "position": "Developer",
+    "email": "osseiliali7@gmail.com",
+    "phone": "76313174",
+    "nationality": "Lebanese",
+    "passport_id": null,
+    "join_date": "2024-10-23T23:00:00.000Z",
+    "notes": "asgrwraqtgaq"
+  },
+  "passport": {
+    "id": "P1746196097776",
+    "employee_name": "Ali Osseili",
+    "employee_id": "EMP4728",
+    "passport_number": "00069478948",
+    "nationality": "Lebanon",
+    "issue_date": "2025-04-27T23:00:00.000Z",
+    "expiry_date": "2025-05-30T23:00:00.000Z",
+    "status": "With Company",
+    "ticket_reference": "6879684",
+    "notes": "TEST",
+    "last_updated": "2025-05-03T13:15:18.000Z"
+  },
+  "flights": [
+    {
+      "id": "FL5f4889ad",
+      "ticket_id": null,
+      "employee_name": null,
+      "employee_id": "EMP4728",
+      "departure_date": "2025-05-04T23:00:00.000Z",
+      "return_date": "2025-05-11T23:00:00.000Z",
+      "destination": "gag",
+      "origin": "asdf",
+      "airline_id": "AL5bbb2060",
+      "airline_name": null,
+      "ticket_reference": "asdf",
+      "flight_number": "gased",
+      "is_return": 0,
+      "status": "Pending",
+      "type": "Business",
+      "notes": null,
+      "last_updated": "2025-05-03T11:43:17.000Z",
+      "booking_reference": null
+    }
+  ],
+  "tickets": [
+    {
+      "id": "TK427cc051",
+      "reference": "asdf",
+      "employee_name": "Ali Osseili",
+      "employee_id": "EMP4728",
+      "issue_date": "2025-05-02T23:00:00.000Z",
+      "airline_id": "AL5bbb2060",
+      "airline_name": "Ethiopian Airlines",
+      "flight_number": "gased",
+      "departure_date": "2025-05-05T23:00:00.000Z",
+      "return_date": "2025-05-12T23:00:00.000Z",
+      "destination": "gag",
+      "origin": "asdf",
+      "cost": null,
+      "currency": "USD",
+      "status": "Active",
+      "type": "Business",
+      "has_return": 0,
+      "departure_completed": 0,
+      "return_completed": 0,
+      "notes": null,
+      "last_updated": "2025-05-03T11:40:34.000Z",
+      "departure_flight_id": null,
+      "return_flight_id": null
+    }
+  ],
+  "transfers": [
+    {
+      "id": "8f3c0f33-cb85-49a2-b443-895e902215bd",
+      "employee_id": "EMP4728",
+      "employee_name": "Ali Osseili",
+      "amount": "250.00",
+      "currency": "USD",
+      "destination": "Lebanon",
+      "beneficiary_name": "Osseili",
+      "beneficiary_phone": "936176313174",
+      "notes": "This is a test\n",
+      "status": "Pending",
+      "date": "2025-05-05T12:59:06.000Z",
+      "last_updated": "2025-05-05T12:59:06.000Z"
+    }
+  ],
+  "visaDestinations": [
+    {
+      "destination": "gag",
+      "type": "Business"
+    }
+  ],
+  "generatedAt": "2025-05-06T11:30:12.251Z",
+  "summary": {
+    "totalFlights": 1,
+    "totalTransfers": 1,
+    "totalTransferAmount": 250,
+    "currencies": [
+      "USD"
+    ],
+    "destinations": [
+      "gag"
+    ],
+    "period": {
+      "startDate": "2025-02-01",
+      "endDate": "2025-05-06"
+    }
+  }
+}
