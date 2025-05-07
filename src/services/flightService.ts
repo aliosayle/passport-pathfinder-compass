@@ -79,6 +79,17 @@ export const flightService = {
     }
   },
 
+  // Update flight status
+  updateStatus: async (id: string, status: string) => {
+    try {
+      const response = await apiClient.put(`/flights/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating flight status:', error);
+      throw error;
+    }
+  },
+
   // Update flight
   update: async (id: string, flightData: Partial<Flight>) => {
     const response = await apiClient.put(`/flights/${id}`, flightData);

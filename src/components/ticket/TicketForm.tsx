@@ -29,10 +29,12 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plane } from "lucide-react";
+import { CalendarIcon, Plane, Search, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 // Define the ticket types
 const ticketTypes: TicketType[] = [
@@ -74,6 +76,8 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [airlines, setAirlines] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [employeeCommandOpen, setEmployeeCommandOpen] = useState(false);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   const { toast } = useToast();
 
   // Initialize form with default values or existing ticket data
@@ -171,18 +175,37 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
         return_completed: ticket?.return_completed || false
       };
       
+      let ticketResponse;
       if (ticket) {
-        await ticketService.update(ticket.id, formattedData);
+        ticketResponse = await ticketService.update(ticket.id, formattedData);
         toast({
           title: "Ticket Updated",
           description: "Ticket has been updated successfully.",
         });
       } else {
-        await ticketService.create(formattedData);
-        toast({
-          title: "Ticket Created",
-          description: "Ticket has been created successfully.",
-        });
+        ticketResponse = await ticketService.create(formattedData);
+        
+        // Automatically create a departure flight for the new ticket
+        try {
+          await ticketService.createFlightFromTicket(ticketResponse.id, false);
+          
+          // If this is a round-trip ticket, also create a return flight
+          if (data.returnDate) {
+            await ticketService.createFlightFromTicket(ticketResponse.id, true);
+          }
+          
+          toast({
+            title: "Ticket and Flight Created",
+            description: "Ticket and corresponding flight(s) have been created successfully.",
+          });
+        } catch (flightError) {
+          console.error("Error creating flight from ticket:", flightError);
+          toast({
+            variant: "destructive",
+            title: "Error Creating Flight",
+            description: "Ticket was created but there was an error creating the flight.",
+          });
+        }
       }
       
       onSave();
@@ -203,9 +226,32 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
     const selectedEmployee = employees.find((emp) => emp.id === employeeId);
     if (selectedEmployee) {
       form.setValue("employeeId", selectedEmployee.id);
-      form.setValue("employeeName", selectedEmployee.name);
+      // Handle different variations of employee name properties
+      const employeeName = selectedEmployee.name || 
+                         (selectedEmployee.firstName && selectedEmployee.lastName ? 
+                          `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : '') || 
+                         selectedEmployee.employeeName || '';
+      form.setValue("employeeName", employeeName);
+      setEmployeeCommandOpen(false);
     }
   };
+  
+  // Filter employees based on search term
+  const filteredEmployees = employeeSearchTerm === "" 
+    ? employees 
+    : employees.filter((employee) => {
+        // Access name safely, considering different property structures
+        const employeeName = employee.name || 
+                            (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
+                            employee.employeeName || '';
+        
+        return (
+          employeeName.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+          employee.id.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+          (employee.department && employee.department.toLowerCase().includes(employeeSearchTerm.toLowerCase())) ||
+          (employee.position && employee.position.toLowerCase().includes(employeeSearchTerm.toLowerCase()))
+        );
+      });
   
   // Handle airline selection
   const handleAirlineChange = (airlineId: string) => {
@@ -242,25 +288,65 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
               control={form.control}
               name="employeeId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Employee</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={handleEmployeeChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select employee" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
-                          {employee.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={employeeCommandOpen} onOpenChange={setEmployeeCommandOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={employeeCommandOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          {field.value
+                            ? employees.find((employee) => employee.id === field.value)?.name || "Select employee"
+                            : "Select employee"}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search employees..." 
+                          value={employeeSearchTerm}
+                          onValueChange={setEmployeeSearchTerm}
+                        />
+                        <CommandEmpty>No employees found.</CommandEmpty>
+                        <CommandGroup>
+                          <ScrollArea className="h-72">
+                            {filteredEmployees.map((employee) => (
+                              <CommandItem
+                                key={employee.id}
+                                value={employee.id}
+                                onSelect={() => handleEmployeeChange(employee.id)}
+                              >
+                                <div className="flex flex-col">
+                                  <span>
+                                    {employee.name || 
+                                     (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
+                                     employee.employeeName || ''}
+                                  </span>
+                                  {employee.department && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {employee.department} • {employee.position || "No position"}
+                                    </span>
+                                  )}
+                                </div>
+                                <Check
+                                  className={cn(
+                                    "ml-auto h-4 w-4",
+                                    field.value === employee.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                              </CommandItem>
+                            ))}
+                          </ScrollArea>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}

@@ -173,6 +173,10 @@ exports.updateFlight = async (req, res) => {
     } = req.body;
 
     const last_updated = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
+    // Format dates properly for MySQL
+    const formattedDepartureDate = departure_date ? new Date(departure_date).toISOString().slice(0, 19).replace('T', ' ') : null;
+    const formattedReturnDate = return_date ? new Date(return_date).toISOString().slice(0, 19).replace('T', ' ') : null;
 
     await pool.query(`
       UPDATE flights SET
@@ -191,8 +195,8 @@ exports.updateFlight = async (req, res) => {
       WHERE id = ?
     `, [
       employee_id,
-      departure_date,
-      return_date || null,
+      formattedDepartureDate,
+      formattedReturnDate,
       destination,
       origin,
       airline_id,
@@ -215,6 +219,54 @@ exports.updateFlight = async (req, res) => {
   } catch (error) {
     console.error('Error updating flight:', error);
     res.status(500).json({ message: 'Error updating flight', error: error.message });
+  }
+};
+
+// Update flight status only
+exports.updateFlightStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    // Validate status
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const validStatuses = ['Pending', 'Completed', 'Cancelled', 'Delayed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        message: 'Invalid status value', 
+        validStatuses: validStatuses 
+      });
+    }
+
+    const last_updated = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    // First check if the flight exists
+    const [flight] = await pool.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
+    
+    if (flight.length === 0) {
+      return res.status(404).json({ message: 'Flight not found' });
+    }
+
+    // Update just the status
+    await pool.query(`
+      UPDATE flights SET
+        status = ?,
+        last_updated = ?
+      WHERE id = ?
+    `, [
+      status,
+      last_updated,
+      req.params.id
+    ]);
+
+    const [updatedFlight] = await pool.query('SELECT * FROM flights WHERE id = ?', [req.params.id]);
+    
+    res.status(200).json(updatedFlight[0]);
+  } catch (error) {
+    console.error('Error updating flight status:', error);
+    res.status(500).json({ message: 'Error updating flight status', error: error.message });
   }
 };
 

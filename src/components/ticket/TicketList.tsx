@@ -247,7 +247,7 @@ const TicketList = ({ onSelect }: TicketListProps) => {
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogTitle>
             {selectedTicket ? "Edit Ticket" : "Add New Ticket"}
           </DialogTitle>
@@ -263,7 +263,7 @@ const TicketList = ({ onSelect }: TicketListProps) => {
       </Dialog>
 
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogTitle>Ticket Details</DialogTitle>
           {selectedTicket && (
             <TicketDetail

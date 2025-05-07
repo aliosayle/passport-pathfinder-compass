@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Search, Loader2, Edit, Trash2, FileUp } from "lucide-react";
+import { User, Search, Loader2, Edit, Trash2, FileUp, FileText, Filter, X, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { employeeService } from "@/services/employeeService";
 import { passportService } from "@/services/passportService";
+import { reportService } from "@/services/reportService";
 import { 
   Dialog, 
   DialogContent, 
@@ -24,7 +25,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { DateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeUploadForm from "../upload/EmployeeUploadForm";
 import type { Employee, Passport } from "@/types";
@@ -32,6 +60,17 @@ import type { Employee, Passport } from "@/types";
 interface EmployeeListProps {
   showAddButton?: boolean;
 }
+
+// Schema for the report form
+const reportFormSchema = z.object({
+  dateRange: z.object({
+    from: z.date(),
+    to: z.date(),
+  }),
+  format: z.enum(['pdf', 'json']),
+});
+
+type ReportFormValues = z.infer<typeof reportFormSchema>;
 
 const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,7 +84,26 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    department: "all",
+    nationality: "all",
+    position: "all"
+  });
   const { toast } = useToast();
+
+  const reportForm = useForm<ReportFormValues>({
+    resolver: zodResolver(reportFormSchema),
+    defaultValues: {
+      dateRange: {
+        from: new Date(),
+        to: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Default to one month range
+      },
+      format: 'pdf',
+    },
+  });
   
   const fetchData = async () => {
     try {
@@ -65,14 +123,36 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Get unique departments, positions, and nationalities for filters
+  const departments = [...new Set(employees.map(e => e.department).filter(Boolean))];
+  const positions = [...new Set(employees.map(e => e.position).filter(Boolean))];
+  const nationalities = [...new Set(employees.map(e => e.nationality).filter(Boolean))];
   
-  const filteredEmployees = employees.filter(employee => 
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (employee.position && employee.position.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (employee.nationality && employee.nationality.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredEmployees = employees.filter(employee => {
+    // Text search filter
+    const matchesSearch = 
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (employee.position && employee.position.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (employee.nationality && employee.nationality.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Dropdown filters
+    const matchesDepartment = filters.department === "all" || employee.department === filters.department;
+    const matchesPosition = filters.position === "all" || employee.position === filters.position;
+    const matchesNationality = filters.nationality === "all" || employee.nationality === filters.nationality;
+    
+    return matchesSearch && matchesDepartment && matchesPosition && matchesNationality;
+  });
+
+  const clearFilters = () => {
+    setFilters({
+      department: "all",
+      nationality: "all",
+      position: "all"
+    });
+  };
   
   const getEmployeePassport = (employeeId: string) => {
     return passports.find(passport => passport.employee_id === employeeId);
@@ -164,6 +244,41 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
     });
     setIsUploadDialogOpen(false);
   };
+
+  const handleGenerateReport = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsReportDialogOpen(true);
+  };
+
+  const downloadEmployeeReport = async (values: ReportFormValues) => {
+    if (!selectedEmployee) return;
+
+    setIsGeneratingReport(true);
+    try {
+      const { dateRange, format } = values;
+      await reportService.downloadEmployeeReport({
+        employeeId: selectedEmployee.id,
+        startDate: dateRange.from.toISOString(),
+        endDate: dateRange.to.toISOString(),
+        format: format
+      });
+      
+      toast({
+        title: "Report Generated",
+        description: `${selectedEmployee.name}'s report has been generated and downloaded.`,
+      });
+      setIsReportDialogOpen(false);
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
   
   return (
     <div className="space-y-4">
@@ -177,15 +292,127 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
         )}
       </div>
 
-      <div className="flex items-center space-x-2 pb-4">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search employees by name, ID, department, nationality..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex flex-wrap gap-2 items-center pb-4">
+        <div className="flex-1 min-w-[260px] flex items-center space-x-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search employees by name, ID, department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
+        <Popover open={filterMenuOpen} onOpenChange={setFilterMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="min-w-[120px]">
+              <Filter className="h-3.5 w-3.5 mr-2" />
+              <span>Filter</span>
+              {Object.values(filters).some(value => value !== "all") && (
+                <Badge variant="secondary" className="ml-2 bg-primary text-white">
+                  {Object.values(filters).filter(value => value !== "all").length}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4" align="end">
+            <div className="space-y-4">
+              <h4 className="font-medium leading-none">Filter Employees</h4>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium">Department</label>
+                  <Select 
+                    value={filters.department} 
+                    onValueChange={(value) => setFilters({...filters, department: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Position</label>
+                  <Select 
+                    value={filters.position} 
+                    onValueChange={(value) => setFilters({...filters, position: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Positions</SelectItem>
+                      {positions.map((pos) => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Nationality</label>
+                  <Select 
+                    value={filters.nationality} 
+                    onValueChange={(value) => setFilters({...filters, nationality: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select nationality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Nationalities</SelectItem>
+                      {nationalities.map((nat) => (
+                        <SelectItem key={nat} value={nat}>{nat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {Object.values(filters).some(value => value !== "all") && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2" 
+                    onClick={clearFilters}
+                  >
+                    <X className="h-3.5 w-3.5 mr-2" />
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
+
+      {Object.values(filters).some(value => value !== "all") && (
+        <div className="flex items-center flex-wrap gap-2 pb-2">
+          <span className="text-sm text-muted-foreground">Active filters:</span>
+          {filters.department !== "all" && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Department: {filters.department}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setFilters({...filters, department: "all"})} />
+            </Badge>
+          )}
+          {filters.position !== "all" && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Position: {filters.position}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setFilters({...filters, position: "all"})} />
+            </Badge>
+          )}
+          {filters.nationality !== "all" && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Nationality: {filters.nationality}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setFilters({...filters, nationality: "all"})} />
+            </Badge>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -256,10 +483,17 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
                           </Button>
                           <Button
                             variant="outline"
-                            size="sm"
+                            size="sm" 
                             onClick={() => handleUploadFile(employee)}
                           >
                             <FileUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleGenerateReport(employee)}
+                          >
+                            <FileText className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
@@ -315,6 +549,85 @@ const EmployeeList = ({ showAddButton = true }: EmployeeListProps) => {
               Cancel
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogTitle>Generate Employee Report</DialogTitle>
+          <DialogDescription>
+            Create a report for {selectedEmployee?.name} for the selected date range.
+          </DialogDescription>
+          <Form {...reportForm}>
+            <form onSubmit={reportForm.handleSubmit(downloadEmployeeReport)} className="space-y-4">
+              <FormField
+                control={reportForm.control}
+                name="dateRange"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date Range</FormLabel>
+                    <FormControl>
+                      <DatePickerWithRange 
+                        dateRange={field.value} 
+                        onDateRangeChange={(range: DateRange) => field.onChange(range)} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Select the time period for the report
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={reportForm.control}
+                name="format"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Report Format</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select format" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="json">JSON</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the format for the downloaded report
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsReportDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isGeneratingReport}>
+                  {isGeneratingReport ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Download Report
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 

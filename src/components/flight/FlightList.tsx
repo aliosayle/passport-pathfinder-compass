@@ -3,7 +3,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Flight } from "@/types";
-import { Plane, Filter, Loader2 } from "lucide-react";
+import { Plane, Filter, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import FlightForm from "./FlightForm";
 import FlightDetail from "./FlightDetail";
@@ -13,6 +13,18 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { flightService } from "@/services/flightService";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Define flight statuses and types
 const flightStatuses = ["Pending", "Completed", "Cancelled", "Delayed"];
@@ -107,6 +119,24 @@ const FlightList = ({ onSelect }: FlightListProps) => {
       toast({
         title: "Error",
         description: "Failed to delete the flight. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStatusChange = async (flightId: string, newStatus: string) => {
+    try {
+      await flightService.updateStatus(flightId, newStatus);
+      toast({
+        title: "Status Updated",
+        description: `The flight status has been changed to ${newStatus}.`,
+      });
+      fetchFlights(); // Refresh the list
+    } catch (error) {
+      console.error("Error updating flight status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update the flight status. Please try again.",
         variant: "destructive",
       });
     }
@@ -257,13 +287,30 @@ const FlightList = ({ onSelect }: FlightListProps) => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(flight)}
-                        >
-                          View
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Actions
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleViewDetails(flight)}>
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(flight.id, "Completed")}>
+                              <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                              Mark as Completed
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(flight.id, "Cancelled")}>
+                              <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                              Mark as Cancelled
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(flight.id, "Delayed")}>
+                              <Clock className="mr-2 h-4 w-4 text-yellow-600" />
+                              Mark as Delayed
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {onSelect && (
                           <Button
                             variant="ghost"
