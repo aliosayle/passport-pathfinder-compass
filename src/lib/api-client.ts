@@ -1,9 +1,31 @@
 import axios from 'axios';
 import { authService } from '@/services/authService';
 
-// Create an axios instance with default config
+// Helper function to determine the API URL based on environment
+const getApiBaseUrl = () => {
+  // Use the environment variable if provided
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Check if running on a server or locally
+  const isLocalhost = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1';
+  
+  // If running locally, use localhost
+  if (isLocalhost) {
+    return 'http://localhost:3001/api';
+  }
+  
+  // If on a server, use the same domain but with the backend port
+  // Alternatively, use relative path if the backend is on the same domain
+  return '/api';  // This assumes your server is configured to proxy /api to your backend
+}
+
+// Create an axios instance with dynamic config
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json'
   }
