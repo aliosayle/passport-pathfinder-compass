@@ -76,7 +76,6 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [airlines, setAirlines] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [employeeCommandOpen, setEmployeeCommandOpen] = useState(false);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -147,6 +146,23 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
     fetchEmployees();
     fetchAirlines();
   }, [toast]);
+
+  // Filter employees based on search term
+  const filteredEmployees = employeeSearchTerm === "" 
+    ? employees 
+    : employees.filter((employee) => {
+        // Access name safely, considering different property structures
+        const employeeName = employee.name || 
+                            (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
+                            employee.employeeName || '';
+        
+        return (
+          employeeName.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+          employee.id.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+          (employee.department && employee.department.toLowerCase().includes(employeeSearchTerm.toLowerCase())) ||
+          (employee.position && employee.position.toLowerCase().includes(employeeSearchTerm.toLowerCase()))
+        );
+      });
 
   // Handle form submission
   const onSubmit = async (data: TicketFormValues) => {
@@ -232,26 +248,8 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
                           `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : '') || 
                          selectedEmployee.employeeName || '';
       form.setValue("employeeName", employeeName);
-      setEmployeeCommandOpen(false);
     }
   };
-  
-  // Filter employees based on search term
-  const filteredEmployees = employeeSearchTerm === "" 
-    ? employees 
-    : employees.filter((employee) => {
-        // Access name safely, considering different property structures
-        const employeeName = employee.name || 
-                            (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
-                            employee.employeeName || '';
-        
-        return (
-          employeeName.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
-          employee.id.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
-          (employee.department && employee.department.toLowerCase().includes(employeeSearchTerm.toLowerCase())) ||
-          (employee.position && employee.position.toLowerCase().includes(employeeSearchTerm.toLowerCase()))
-        );
-      });
   
   // Handle airline selection
   const handleAirlineChange = (airlineId: string) => {
@@ -290,63 +288,44 @@ const TicketForm = ({ ticket, onSave, onClose }: TicketFormProps) => {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Employee</FormLabel>
-                  <Popover open={employeeCommandOpen} onOpenChange={setEmployeeCommandOpen}>
-                    <PopoverTrigger asChild>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Search employees..."
+                      value={employeeSearchTerm}
+                      onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Select
+                      value={field.value}
+                      onValueChange={handleEmployeeChange}
+                    >
                       <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={employeeCommandOpen}
-                          className="w-full justify-between font-normal"
-                        >
-                          {field.value
-                            ? employees.find((employee) => employee.id === field.value)?.name || "Select employee"
-                            : "Select employee"}
-                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select employee" />
+                        </SelectTrigger>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput 
-                          placeholder="Search employees..." 
-                          value={employeeSearchTerm}
-                          onValueChange={setEmployeeSearchTerm}
-                        />
-                        <CommandEmpty>No employees found.</CommandEmpty>
-                        <CommandGroup>
-                          <ScrollArea className="h-72">
-                            {filteredEmployees.map((employee) => (
-                              <CommandItem
-                                key={employee.id}
-                                value={employee.id}
-                                onSelect={() => handleEmployeeChange(employee.id)}
-                              >
-                                <div className="flex flex-col">
-                                  <span>
-                                    {employee.name || 
-                                     (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
-                                     employee.employeeName || ''}
-                                  </span>
-                                  {employee.department && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {employee.department} • {employee.position || "No position"}
-                                    </span>
-                                  )}
-                                </div>
-                                <Check
-                                  className={cn(
-                                    "ml-auto h-4 w-4",
-                                    field.value === employee.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                              </CommandItem>
-                            ))}
-                          </ScrollArea>
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                      <SelectContent>
+                        {filteredEmployees.length === 0 ? (
+                          <div className="p-2 text-center text-muted-foreground">
+                            {employees.length === 0 ? "Loading employees..." : "No matching employees found"}
+                          </div>
+                        ) : (
+                          filteredEmployees.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.name || 
+                               (employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : '') || 
+                               employee.employeeName || ''}{' '}
+                              {employee.department && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({employee.department})
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

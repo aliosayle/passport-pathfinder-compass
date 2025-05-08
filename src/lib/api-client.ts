@@ -29,8 +29,10 @@ const processQueue = (error: any = null) => {
 // Add an interceptor for authentication
 apiClient.interceptors.request.use((config) => {
   // Get token from authService to ensure consistency
-  const token = authService.getToken();
+  const token = localStorage.getItem('passport_pathfinder_token');
+  
   if (token) {
+    // Make sure we're setting the Authorization header properly
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -42,6 +44,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    // Only log errors in development environment
+    if (import.meta.env.DEV) {
+      console.log(`API Error for ${originalRequest.url}:`, error.response?.status);
+    }
+    
     // Avoid infinite loops - don't retry already retried requests
     if (originalRequest._retry) {
       return Promise.reject(error);
@@ -51,48 +58,45 @@ apiClient.interceptors.response.use(
     const isAuthLogin = originalRequest.url?.includes('/auth/login');
     const isAuthRegister = originalRequest.url?.includes('/auth/register');
     
-    // If this is a 401 error for a non-login/register endpoint and we're not already refreshing
-    if (error.response?.status === 401 && !isAuthLogin && !isAuthRegister && !isRefreshingAuth) {
+    // If this is a 401 or 403 error for a non-login/register endpoint
+    if ((error.response?.status === 401 || error.response?.status === 403) 
+        && !isAuthLogin && !isAuthRegister && !isRefreshingAuth) {
       // Mark request for retry
       originalRequest._retry = true;
       
-      // If not already refreshing auth, try to validate stored auth
+      // If token exists but we got 403, it might be invalid - try clearing it
+      if (error.response?.status === 403) {
+        if (import.meta.env.DEV) {
+          console.log('Received 403 Forbidden - token may be invalid, try logging in again');
+        }
+        
+        // Don't auto logout, but clear the token
+        localStorage.removeItem('passport_pathfinder_token');
+        
+        // Return reject so the application can handle the auth error
+        return Promise.reject(error);
+      }
+      
+      // Handle 401 unauthorized errors
       if (!isRefreshingAuth) {
         isRefreshingAuth = true;
-        
-        // Try to use the stored user data directly instead of clearing
-        const storedUser = authService.getStoredUser();
-        if (storedUser) {
-          // For non-auth endpoints, retry with existing token without clearing
+        try {
           const token = authService.getToken();
           
           if (token) {
-            // Wait for any in-progress auth refreshes to complete
-            try {
-              // Process all queued requests with the current token
-              processQueue();
-              isRefreshingAuth = false;
-              
-              // Retry the original request
-              return apiClient(originalRequest);
-            } catch (refreshError) {
-              // Only clear session on critical auth errors
-              processQueue(refreshError);
-              isRefreshingAuth = false;
-              return Promise.reject(refreshError);
-            }
+            processQueue();
+            isRefreshingAuth = false;
+            
+            // Retry the original request
+            return apiClient(originalRequest);
+          } else {
+            throw new Error('No valid token available');
           }
+        } catch (refreshError) {
+          processQueue(refreshError);
+          isRefreshingAuth = false;
+          return Promise.reject(refreshError);
         }
-        
-        // Only clear tokens for auth-specific endpoints
-        const isAuthEndpoint = originalRequest.url?.includes('/auth/me');
-        if (isAuthEndpoint) {
-          console.log('Authentication endpoint failed, clearing session data');
-          // Clear token but don't force logout - keep stored user data as fallback
-          localStorage.removeItem('passport_pathfinder_token');
-        }
-        
-        isRefreshingAuth = false;
       }
     }
     

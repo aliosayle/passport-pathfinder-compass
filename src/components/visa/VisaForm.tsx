@@ -1,27 +1,53 @@
-
-import { useState } from "react";
-import { VisaType } from "@/types";
+import { useState, useEffect } from "react";
+import { VisaType } from "@/services/visaTypeService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { addVisaType, updateVisaType, nationalities } from "@/lib/data";
+import { visaTypeService } from "@/services/visaTypeService";
+import { nationalityService } from "@/services/nationalityService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 interface VisaFormProps {
   visa?: VisaType;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const VisaForm = ({ visa, onClose }: VisaFormProps) => {
+const VisaForm = ({ visa, onClose, onSuccess }: VisaFormProps) => {
   const [type, setType] = useState(visa?.type || "");
-  const [countryCode, setCountryCode] = useState(visa?.countryCode || "");
-  const [countryName, setCountryName] = useState(visa?.countryName || "");
+  const [countryCode, setCountryCode] = useState(visa?.country_code || "");
+  const [countryName, setCountryName] = useState(visa?.country_name || "");
   const [duration, setDuration] = useState(visa?.duration || "");
   const [requirements, setRequirements] = useState(visa?.requirements || "");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nationalities, setNationalities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const loadNationalities = async () => {
+      try {
+        setLoading(true);
+        const data = await nationalityService.getAll();
+        setNationalities(data);
+      } catch (error) {
+        console.error("Error loading nationalities:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load country list. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNationalities();
+  }, [toast]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -52,7 +78,7 @@ const VisaForm = ({ visa, onClose }: VisaFormProps) => {
     setCountryName(country?.name || "");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) {
@@ -60,43 +86,56 @@ const VisaForm = ({ visa, onClose }: VisaFormProps) => {
     }
 
     try {
+      setIsSubmitting(true);
+      
+      const visaData = {
+        type,
+        country_code: countryCode,
+        country_name: countryName,
+        duration,
+        requirements,
+      };
+
       if (visa) {
         // Update existing
-        updateVisaType({
-          ...visa,
-          type,
-          countryCode,
-          countryName,
-          duration,
-          requirements,
-        });
+        await visaTypeService.update(visa.id, visaData);
         toast({
           title: "Visa Type Updated",
           description: `${type} visa for ${countryName} has been updated successfully.`
         });
       } else {
         // Create new
-        addVisaType({
-          type,
-          countryCode,
-          countryName,
-          duration,
-          requirements,
-        });
+        await visaTypeService.create(visaData);
         toast({
           title: "Visa Type Added",
           description: `${type} visa for ${countryName} has been added successfully.`
         });
       }
+      
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
     } catch (error) {
+      console.error("Error saving visa type:", error);
       toast({
         title: "Error",
         description: "There was an error processing the visa type data.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading country data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -168,11 +207,18 @@ const VisaForm = ({ visa, onClose }: VisaFormProps) => {
         </div>
         
         <div className="flex justify-end space-x-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">
-            {visa ? "Update Visa Type" : "Add Visa Type"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {visa ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              visa ? "Update Visa Type" : "Add Visa Type"
+            )}
           </Button>
         </div>
       </form>

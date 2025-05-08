@@ -41,6 +41,8 @@ interface Employee {
   name: string;
 }
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
 export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -49,6 +51,9 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [report, setReport] = useState<EmployeeReport | null>(null);
+  const [transferStartDate, setTransferStartDate] = useState<Date | undefined>(new Date());
+  const [transferEndDate, setTransferEndDate] = useState<Date | undefined>(new Date());
+  const [isDownloadingTransfersReport, setIsDownloadingTransfersReport] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -138,6 +143,53 @@ export default function ReportsPage() {
       });
     } finally {
       setDownloadLoading(false);
+    }
+  };
+
+  // Function to download transfers report
+  const downloadTransfersReport = async () => {
+    if (!transferStartDate || !transferEndDate) {
+      toast({
+        variant: "destructive",
+        title: "Missing dates",
+        description: "Please select both start and end dates.",
+      });
+      return;
+    }
+
+    try {
+      setIsDownloadingTransfersReport(true);
+      
+      // Format dates for API
+      const startDateStr = format(transferStartDate, "yyyy-MM-dd");
+      const endDateStr = format(transferEndDate, "yyyy-MM-dd");
+      
+      // Create direct download URL - using the correct URL structure
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('passport_pathfinder_token');
+      
+      // The baseUrl might already include '/api', so check before constructing the URL
+      const apiPrefix = baseUrl.endsWith('/api') ? '' : '/api';
+      const downloadUrl = `${baseUrl}${apiPrefix}/reports/transfers/download?startDate=${startDateStr}&endDate=${endDateStr}&format=excel&token=${token}`;
+      
+      console.log("Download URL:", downloadUrl);
+      
+      // Open in new window to trigger download
+      window.open(downloadUrl, '_blank');
+      
+      toast({
+        title: "Report Generated",
+        description: "Your transfers report is being downloaded.",
+      });
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Failed to download the transfers report. Please try again.",
+      });
+    } finally {
+      setIsDownloadingTransfersReport(false);
     }
   };
 
@@ -269,6 +321,90 @@ export default function ReportsPage() {
 
         {/* Report Viewer */}
         {report && <ReportViewer report={report} />}
+
+        {/* Transfers Report Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Money Transfers Report</CardTitle>
+            <CardDescription>
+              Generate an Excel report of all money transfers within a specified date range.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Start Date Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Start Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !transferStartDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {transferStartDate ? (
+                        format(transferStartDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={transferStartDate}
+                      onSelect={setTransferStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {/* End Date Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">End Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !transferEndDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {transferEndDate ? (
+                        format(transferEndDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={transferEndDate}
+                      onSelect={setTransferEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <Button 
+                onClick={downloadTransfersReport} 
+                disabled={isDownloadingTransfersReport || !transferStartDate || !transferEndDate}
+              >
+                {isDownloadingTransfersReport ? "Generating..." : "Download Excel Report"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

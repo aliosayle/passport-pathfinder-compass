@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
-import { Plane, Globe, Home, User, Calendar, Ticket, Flag, Users, LogOut, ChevronDown, FileUp, BarChart } from "lucide-react";
+import { Plane, Globe, Home, User, Calendar, Ticket, Flag, Users, LogOut, ChevronDown, BarChart } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -121,14 +121,6 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link to="/visas">
                     <Calendar />
                     <span>Visas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={activePage === "uploads"}>
-                  <Link to="/uploads">
-                    <FileUp />
-                    <span>Files</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

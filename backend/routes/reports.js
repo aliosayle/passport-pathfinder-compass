@@ -15,4 +15,9 @@ router.post('/employee/download', reportController.downloadEmployeeReport);
 // Also allow GET requests for downloads (for direct browser downloads with query params)
 router.get('/employee/download', reportController.downloadEmployeeReport);
 
+// Money transfers report endpoints
+router.post('/transfers', reportController.generateTransfersReport);
+router.get('/transfers/download', reportController.downloadTransfersReport);
+router.post('/transfers/download', reportController.downloadTransfersReport);
+
 module.exports = router;

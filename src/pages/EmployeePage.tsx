@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
-import { User, Ticket as TicketIcon, Plane, Calendar, Banknote, Loader2, FileUp } from "lucide-react";
+import { User, Ticket as TicketIcon, Plane, Calendar, Banknote, Loader2, FileUp, Globe } from "lucide-react";
 import TransferForm from "@/components/transfer/TransferForm";
 import TransferHistory from "@/components/transfer/TransferHistory";
 import FileList from "@/components/upload/FileList";
 import EmployeeUploadForm from "@/components/upload/EmployeeUploadForm";
+import EmployeeVisaList from "@/components/visa/EmployeeVisaList";
 
 // Import services
 import { employeeService, Employee } from "@/services/employeeService";
@@ -269,6 +270,7 @@ const EmployeePage = () => {
                   <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="transfer">Send Money</TabsTrigger>
                   <TabsTrigger value="transferHistory">Transfer History</TabsTrigger>
+                  <TabsTrigger value="visas">Visas</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <CardContent className="pt-6">
@@ -533,6 +535,15 @@ const EmployeePage = () => {
                     <h3 className="text-lg font-semibold">Transfer History</h3>
                   </div>
                   <TransferHistory />
+                </TabsContent>
+                
+                <TabsContent value="visas" className="space-y-4">
+                  <div className="flex items-center mb-4 space-x-2">
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Employee Visas</h3>
+                  </div>
+                  
+                  <EmployeeVisaList employeeId={id} />
                 </TabsContent>
               </CardContent>
             </Tabs>

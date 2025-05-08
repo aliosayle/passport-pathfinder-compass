@@ -13,10 +13,17 @@ import { Link } from "react-router-dom";
 import { passportService } from "@/services/passportService";
 import { employeeService } from "@/services/employeeService";
 import { format } from "date-fns";
-import { TicketIcon, BookOpen } from "lucide-react";
+import { TicketIcon, BookOpen, BarChart, Globe } from "lucide-react";
+
+// Import dashboard components
+import DashboardStats from "@/components/dashboard/DashboardStats";
+import PassportSummary from "@/components/dashboard/PassportSummary";
+import ExpiringPassports from "@/components/dashboard/ExpiringPassports";
+import ExpiringVisas from "@/components/dashboard/ExpiringVisas";
+import RecentActivities from "@/components/dashboard/RecentActivities";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("tickets");
+  const [activeTab, setActiveTab] = useState("dashboard"); // Changed default tab to "dashboard"
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedPassport, setSelectedPassport] = useState<Passport | null>(null);
@@ -127,7 +134,10 @@ const Index = () => {
           onValueChange={setActiveTab} 
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="dashboard" className="flex items-center">
+              <BarChart className="h-4 w-4 mr-2" /> Dashboard Overview
+            </TabsTrigger>
             <TabsTrigger value="tickets" className="flex items-center">
               <TicketIcon className="h-4 w-4 mr-2" /> Ticket Management
             </TabsTrigger>
@@ -135,6 +145,27 @@ const Index = () => {
               <BookOpen className="h-4 w-4 mr-2" /> Passports
             </TabsTrigger>
           </TabsList>
+          
+          {/* New Dashboard Tab */}
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Stats Overview */}
+            <DashboardStats />
+            
+            {/* Passport Summary */}
+            <PassportSummary />
+            
+            {/* Two-column layout for lists */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* Expiring Passports */}
+              <ExpiringPassports />
+              
+              {/* Expiring Visas */}
+              <ExpiringVisas />
+            </div>
+            
+            {/* Recent Activity */}
+            <RecentActivities />
+          </TabsContent>
           
           <TabsContent value="tickets" className="space-y-6">
             <PendingTickets />

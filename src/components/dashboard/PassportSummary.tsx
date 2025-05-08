@@ -1,9 +1,82 @@
-
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPassportStats } from "@/lib/data";
+import { passportService } from "@/services/passportService";
+import { Loader2 } from "lucide-react";
+
+interface PassportStats {
+  totalCount: number;
+  expiringIn30Days: number;
+  expiringIn90Days: number;
+  withCompany: number;
+  withEmployee: number;
+  withDGM: number;
+}
 
 const PassportSummary = () => {
-  const stats = getPassportStats();
+  const [stats, setStats] = useState<PassportStats>({
+    totalCount: 0,
+    expiringIn30Days: 0,
+    expiringIn90Days: 0,
+    withCompany: 0,
+    withEmployee: 0,
+    withDGM: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPassportStats = async () => {
+      try {
+        setLoading(true);
+        
+        // Get all passports
+        const allPassports = await passportService.getAll();
+        
+        // Get passports expiring within 30 days and 90 days
+        const expiring30 = await passportService.getExpiringPassports(30);
+        const expiring90 = await passportService.getExpiringPassports(90);
+        
+        // Count passports by status
+        const withCompanyCount = allPassports.filter(p => p.status === 'With Company').length;
+        const withEmployeeCount = allPassports.filter(p => p.status === 'With Employee').length;
+        const withDGMCount = allPassports.filter(p => p.status === 'With DGM').length;
+        
+        setStats({
+          totalCount: allPassports.length,
+          expiringIn30Days: expiring30.length,
+          expiringIn90Days: expiring90.length - expiring30.length, // Exclude the ones expiring in 30 days
+          withCompany: withCompanyCount,
+          withEmployee: withEmployeeCount,
+          withDGM: withDGMCount
+        });
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching passport statistics:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchPassportStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Loading...</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

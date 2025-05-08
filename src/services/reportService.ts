@@ -134,8 +134,8 @@ export const reportService = {
       const token = localStorage.getItem('passport_pathfinder_token');
       
       // Create a direct download link instead of processing the response
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const endpoint = '/reports/employee/download';
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const endpoint = '/api/reports/employee/download';
       const queryParams = new URLSearchParams({
         employeeId: data.employeeId,
         startDate: data.startDate,
@@ -150,6 +150,33 @@ export const reportService = {
       return Promise.resolve();
     } catch (error) {
       console.error('Error downloading report:', error);
+      throw error;
+    }
+  },
+
+  generateTransfersReport: async (data: { startDate: string; endDate: string }): Promise<any> => {
+    const response = await api.post('/reports/transfers', data);
+    return response.data.report;
+  },
+
+  downloadTransfersReport: async (data: { startDate: string; endDate: string; format?: 'excel' | 'json' }): Promise<void> => {
+    try {
+      const requestData = { ...data, format: data.format || 'excel' };
+      const token = localStorage.getItem('passport_pathfinder_token');
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const endpoint = '/api/reports/transfers/download';
+      const queryParams = new URLSearchParams({
+        startDate: requestData.startDate,
+        endDate: requestData.endDate,
+        format: requestData.format,
+        token: token || ''
+      }).toString();
+      
+      window.open(`${baseUrl}${endpoint}?${queryParams}`, '_blank');
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error downloading transfers report:', error);
       throw error;
     }
   }
