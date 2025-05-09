@@ -4,6 +4,7 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: '/passports/', // Ensures assets are loaded correctly from the subfolder
   server: {
     host: "::",
     port: 8080,
