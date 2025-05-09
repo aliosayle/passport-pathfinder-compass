@@ -22,9 +22,24 @@ const reportRoutes = require('./routes/reports');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Define allowed origins
+const allowedOrigins = [
+  'http://localhost:8080', // For local frontend dev
+  'http://10.10.10.158:8080', // For frontend dev accessed via VPN/local network IP
+  // Add any other origins you need to support (e.g., your production frontend URL)
+];
+
 // Enhanced CORS configuration for file downloads
 const corsOptions = {
-  origin: '*', // Allow all origins for download compatibility
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range', 'Access-Control-Allow-Origin', 'Origin', 'Accept', 'Content-Disposition'],
@@ -65,9 +80,7 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/reports', reportRoutes);
 
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT} and listening on all interfaces`);
-  console.log(`Local access: http://localhost:${PORT}`);
-  console.log(`Network access: Check your server's IP address`);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
   testConnection(); // Test database connection
 });
