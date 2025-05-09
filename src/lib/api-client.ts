@@ -18,10 +18,25 @@ const getApiBaseUrl = () => {
     return 'http://localhost:3001/api';
   }
   
-  // If on a server, use the same domain but with the backend port
-  // Alternatively, use relative path if the backend is on the same domain
-  return '/api';  // This assumes your server is configured to proxy /api to your backend
+  // When deployed on a server, use the current origin with the API path
+  const serverUrl = `${window.location.protocol}//${window.location.hostname}`;
+  
+  // If the backend is running on a different port than the frontend
+  // we need to specify that port, otherwise use the same port
+  const serverPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+  const backendPort = '3001'; // Change this if your backend runs on a different port on the server
+  
+  // If using the same port as the frontend, just append /api
+  if (serverPort === backendPort) {
+    return `${serverUrl}/api`;
+  }
+  
+  // Otherwise, use the full URL with port
+  return `${serverUrl}:${backendPort}/api`;
 }
+
+// Log the API base URL being used (helpful for debugging)
+console.log('API Base URL:', getApiBaseUrl());
 
 // Create an axios instance with dynamic config
 const apiClient = axios.create({

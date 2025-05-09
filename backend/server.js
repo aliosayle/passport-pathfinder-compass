@@ -65,7 +65,9 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/reports', reportRoutes);
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT} and listening on all interfaces`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`Network access: Check your server's IP address`);
   testConnection(); // Test database connection
 });
